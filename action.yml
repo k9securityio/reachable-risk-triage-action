@@ -1,0 +1,206 @@
+# Reachable Risk Triage — composite action.
+#
+# Pipeline (verified e2e in the four-file predecessor, k9 CLOUD-4004):
+# checkout -> mint k9 M2M token -> fetch k9 workflow guidance (the k9 MCP
+# server is the source of truth; rubric/workflow updates need NO release of
+# this action) -> run the agent CLI headlessly with the k9 MCP server ->
+# check deliverables -> report to job summary + artifact -> notify Teams.
+#
+# The caller workflow owns what a composite action cannot declare:
+# permissions, concurrency, and timeout-minutes. See examples/.
+name: Reachable Risk Triage
+description: >-
+  Scheduled dependency alert triage with the k9 Security MCP server: score
+  every open Dependabot alert against the k9 risk rubric, publish a full
+  triage report to the job summary and an artifact, file GitHub issues for
+  actionable findings, and notify Microsoft Teams.
+author: k9 Security
+
+branding:
+  icon: shield
+  color: purple
+
+inputs:
+  k9-client-id:
+    description: >-
+      k9 Service Client (M2M) id. Self-serve at My Account -> Service
+      Clients (M2M).
+    required: true
+  k9-client-secret:
+    description: k9 Service Client (M2M) secret.
+    required: true
+  github-token:
+    description: >-
+      Fine-grained PAT used by `gh` inside the triage agent (org-owned is
+      fine; no Copilot permission needed). Required repo permissions:
+      Dependabot alerts: read + Issues: write + Contents: read. The
+      Actions-issued GITHUB_TOKEN cannot read Dependabot alerts, so a PAT is
+      required.
+    required: true
+  teams-webhook-url:
+    description: >-
+      Microsoft Teams *Workflows* webhook URL (classic incoming webhooks are
+      retired). Optional: when unset, the run reports to the job summary and
+      artifact only.
+    required: false
+    default: ""
+  copilot-github-token:
+    description: >-
+      Optional override token for Copilot CLI auth. Default is the caller's
+      Actions token, billed to the org's Copilot plan via the
+      `copilot-requests: write` permission. Orgs that cannot hold Copilot
+      Business set this to a classic token of a Copilot-licensed user. Do NOT
+      use an org-owned fine-grained PAT: it cannot carry the account-level
+      Copilot Requests permission (github/copilot-cli#223).
+    required: false
+    default: ""
+  agent:
+    description: "Agent CLI to run the triage. v1 supports: copilot."
+    required: false
+    default: copilot
+  model:
+    description: Model the agent CLI uses.
+    required: false
+    default: claude-sonnet-5
+  k9-mcp-url:
+    description: k9 MCP server URL.
+    required: false
+    default: https://mcp.k9security.io/mcp
+  k9-auth-domain:
+    description: k9 auth (OAuth token) domain.
+    required: false
+    default: auth.k9security.io
+  k9-audience:
+    description: OAuth audience for the k9 MCP server.
+    required: false
+    default: https://mcp.k9security.io/
+
+runs:
+  using: composite
+  steps:
+    - name: Validate agent input
+      shell: bash
+      env:
+        AGENT: ${{ inputs.agent }}
+      run: |
+        if [ "$AGENT" != "copilot" ]; then
+          echo "::error::agent '$AGENT' is not yet supported (v1 supports: copilot)"
+          exit 1
+        fi
+
+    - name: Check out the repository under triage
+      # The triage agent reads the repo's manifests and
+      # .k9security/risk-context.yaml; nothing after checkout uses git
+      # credentials (gh authenticates via env tokens).
+      uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      with:
+        persist-credentials: false
+
+    - name: Mint k9 MCP token (client_credentials)
+      shell: bash
+      env:
+        K9_CLIENT_ID: ${{ inputs.k9-client-id }}
+        K9_CLIENT_SECRET: ${{ inputs.k9-client-secret }}
+        K9_AUTH_DOMAIN: ${{ inputs.k9-auth-domain }}
+        K9_AUDIENCE: ${{ inputs.k9-audience }}
+      run: |
+        token=$(curl -sS --fail-with-body -X POST "https://${K9_AUTH_DOMAIN}/oauth/token" \
+          -H 'Content-Type: application/json' \
+          -d "$(jq -n --arg id "$K9_CLIENT_ID" --arg secret "$K9_CLIENT_SECRET" --arg aud "$K9_AUDIENCE" \
+                '{grant_type:"client_credentials",client_id:$id,client_secret:$secret,audience:$aud}')" \
+          | jq -er .access_token)
+        echo "::add-mask::$token"
+        # Hand the token to later steps via a runner-temp file rather than
+        # GITHUB_ENV: it never lands in the ambient env of every subsequent
+        # step, and zizmor's github-env audit stays clean.
+        install -m 600 /dev/null "$RUNNER_TEMP/k9-mcp-token"
+        printf '%s' "$token" > "$RUNNER_TEMP/k9-mcp-token"
+
+    - name: Fetch k9 workflow guidance (server is the source of truth)
+      shell: bash
+      env:
+        K9_MCP_URL: ${{ inputs.k9-mcp-url }}
+        OUT_DIR: out/k9-guidance
+      run: |
+        K9_MCP_TOKEN="$(cat "$RUNNER_TEMP/k9-mcp-token")" \
+          bash "$GITHUB_ACTION_PATH/scripts/fetch-k9-guidance.sh"
+
+    - name: Install GitHub Copilot CLI
+      shell: bash
+      # Version-pinned to the release the verified runs used; a global CLI
+      # install in CI is inherent to the design and the pin bounds it
+      # (accepted residual finding).
+      run: npm install -g @github/copilot@1.0.80 # zizmor: ignore[adhoc-packages]
+
+    - name: Run triage agent (GitHub Copilot CLI)
+      id: agent
+      # bash turns on pipefail; without it the trailing 'tee' hides a
+      # copilot failure and the job goes green having produced nothing.
+      shell: bash
+      env:
+        K9_MCP_URL: ${{ inputs.k9-mcp-url }}
+        MODEL: ${{ inputs.model }}
+        # Copilot CLI token precedence is COPILOT_GITHUB_TOKEN > GH_TOKEN >
+        # GITHUB_TOKEN. GH_TOKEN must hold the PAT for `gh` (Dependabot
+        # alerts), so pin Copilot explicitly or it grabs the PAT and fails.
+        COPILOT_GITHUB_TOKEN: ${{ inputs.copilot-github-token || github.token }}
+        GH_TOKEN: ${{ inputs.github-token }}
+      run: |
+        mkdir -p out
+        export COPILOT_HOME="$RUNNER_TEMP/copilot-home"
+        mkdir -p "$COPILOT_HOME"
+        jq -n --arg url "$K9_MCP_URL" --arg auth "Bearer $(cat "$RUNNER_TEMP/k9-mcp-token")" \
+          '{mcpServers: {k9: {type: "http", url: $url, headers: {Authorization: $auth}}}}' \
+          > "$COPILOT_HOME/mcp-config.json"
+        copilot -p "$(envsubst '$GITHUB_REPOSITORY $GITHUB_SERVER_URL $GITHUB_RUN_ID' \
+            < "$GITHUB_ACTION_PATH/prompts/dependency-triage-prompt.md")" \
+          --model "$MODEL" \
+          --allow-tool 'k9' --allow-tool 'shell' --allow-tool 'write' \
+          --no-ask-user 2>&1 | tee out/agent-run.log
+
+    - name: Check deliverables exist
+      # The agent exiting 0 is not proof it produced the report; fail loudly
+      # when the run's contract artifacts are missing.
+      shell: bash
+      run: |
+        test -s out/dependency-triage-report.md || { echo "::error::missing out/dependency-triage-report.md"; exit 1; }
+        jq -e '.schema == "k9-triage-summary/v1"' out/triage-summary.json >/dev/null \
+          || { echo "::error::missing/invalid out/triage-summary.json"; exit 1; }
+
+    - name: Publish report (job summary)
+      if: always()
+      shell: bash
+      run: |
+        if [ -f out/dependency-triage-report.md ]; then
+          cat out/dependency-triage-report.md >> "$GITHUB_STEP_SUMMARY"
+        else
+          echo '## Triage run produced no report (see agent log artifact)' >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+    - name: Upload report artifact
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      with:
+        name: dependency-triage-report
+        path: |
+          out/dependency-triage-report.md
+          out/triage-summary.json
+          out/agent-run.log
+        if-no-files-found: warn
+
+    - name: Notify configured channels
+      if: always()
+      shell: bash
+      env:
+        TEAMS_WEBHOOK_URL: ${{ inputs.teams-webhook-url }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        JOB_STATUS: ${{ steps.agent.outcome }}
+      run: |
+        # Report which notification channels were specified; an absent
+        # channel is informational, never a warning or an error.
+        if [ -n "$TEAMS_WEBHOOK_URL" ]; then
+          echo "notification channels: teams"
+          bash "$GITHUB_ACTION_PATH/scripts/notify-teams.sh"
+        else
+          echo "notification channels: none configured"
+        fi

@@ -1,0 +1,37 @@
+# Scheduled dependency-alert triage via the k9 Reachable Risk Triage action.
+# Copy this file to .github/workflows/dependency-triage.yml and configure the
+# secrets named below (repo or org scope). Full setup guide: this action's
+# README.
+name: dependency-alert-triage
+
+on:
+  schedule:
+    - cron: "0 14 * * 2" # weekly, Tuesday 14:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read # checkout of this repo (manifests, .k9security/risk-context.yaml)
+  issues: write # file one issue per actionable finding
+  copilot-requests: write # authenticates Copilot CLI via the Actions token
+
+# Never let two triage runs overlap (a manual dispatch during the cron run
+# would double-score and double-file); queue instead of cancel so a running
+# triage always finishes and reports.
+concurrency:
+  group: dependency-alert-triage
+  cancel-in-progress: false
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      # The floating v1 major tag is the recommended default: fixes reach
+      # every caller without per-repo edits. Policy-restricted orgs can pin
+      # to a release SHA instead — see the README's versioning section.
+      - uses: k9securityio/reachable-risk-triage-action@v1 # zizmor: ignore[unpinned-uses]
+        with:
+          k9-client-id: ${{ secrets.K9_CLIENT_ID }}
+          k9-client-secret: ${{ secrets.K9_CLIENT_SECRET }}
+          github-token: ${{ secrets.GH_TRIAGE_TOKEN }}
+          teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}

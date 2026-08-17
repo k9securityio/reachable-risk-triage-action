@@ -1,0 +1,53 @@
+# CI + release gate for the action itself: shell lint, workflow lint, and a
+# zizmor security audit over the action definition, the example caller, and
+# this workflow. zizmor findings fail the build — a published action is a
+# supply-chain artifact customers execute with secrets in scope.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read # checkout only
+
+jobs:
+  lint-and-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: shellcheck
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q shellcheck
+          shellcheck scripts/*.sh
+
+      - name: actionlint (example caller + CI workflows)
+        env:
+          ACTIONLINT_VERSION: 1.7.10
+        run: |
+          bash <(curl -sSf https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash) \
+            "$ACTIONLINT_VERSION" /usr/local/bin
+          # 'copilot-requests' is a real Actions permission that actionlint's
+          # permission list does not know yet — same false-positive class as
+          # zizmor <=1.29's 'unknown permission' warn. Re-check on upgrades.
+          actionlint -ignore 'unknown permission scope "copilot-requests"' \
+            .github/workflows/*.yml examples/*.yml
+
+      - name: zizmor security audit (release gate)
+        env:
+          ZIZMOR_VERSION: 1.29.0
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pipx install "zizmor==${ZIZMOR_VERSION}"
+          # Audits action.yml + CI workflows (the default collection) and the
+          # example caller (not a workflow path, so passed explicitly).
+          # Known false positive: zizmor <=1.29 does not recognize the
+          # copilot-requests permission ('unknown permission' warn) — do not
+          # "fix" it away; re-check on newer zizmor.
+          zizmor --min-severity low . examples/dependency-triage.yml
