@@ -93,7 +93,7 @@ context.
    "Allow use of Copilot CLI billed to the organization" is enabled (Organization Settings →
    Copilot → Policies; it is on by default).
 2. **A k9 Security account** with the
-   [Reachable Risk](https://www.k9security.io/lp/reachable-risk/) plan (`score_risk` access).
+   [Reachable Risk](https://www.k9security.io/lp/reachable-risk/) plan (`score_risk` access). Free to start, no credit card required.
 3. **Dependabot alerts enabled** on the repository.
 4. Optional: **a Microsoft Teams channel** where run outcomes should be announced.
 
@@ -181,7 +181,7 @@ The action's own dependencies are hash-pinned and zizmor-audited in CI on every 
 
 ## Roadmap
 
-The `agent` input is the seam for driving the same triage with Claude Code or Opencode; the
+The `agent` input exists so that we can build support for triaging with Claude Code or Opencode. The
 prompt, guidance fetch, report publishing, and notifications are agent-neutral. v1 ships the
 Copilot CLI path.
 
