@@ -77,12 +77,12 @@ Repository (or organization) Actions secrets:
 | `k9-client-id` | yes | — | k9 Service Client (M2M) id |
 | `k9-client-secret` | yes | — | k9 Service Client (M2M) secret |
 | `github-token` | yes | — | Fine-grained PAT for `gh` (see Secrets) |
+| `agent` | yes | — | Agent CLI. v1 supports `copilot`; other values fail fast |
+| `model` | yes | — | Model the agent CLI uses |
 | `deps-command` | yes | — | Repo's dependency-install command; runs before analysis (reachability needs installed deps) and again on fix branches |
 | `test-command` | no | `""` | Repo's test command; unset ⇒ no fix PRs, report only |
 | `teams-webhook-url` | no | `""` | Teams Workflows webhook; unset ⇒ no Teams notification |
 | `copilot-github-token` | no | Actions token | Copilot auth override (see Secrets) |
-| `agent` | yes | — | Agent CLI. v1 supports `copilot`; other values fail fast |
-| `model` | yes | — | Model the agent CLI uses |
 | `k9-mcp-url` | no | `https://mcp.k9security.io/mcp` | k9 MCP server URL |
 | `k9-auth-domain` | no | `auth.k9security.io` | k9 OAuth token domain |
 | `k9-audience` | no | `https://mcp.k9security.io/` | OAuth audience for the k9 MCP server |
@@ -138,6 +138,7 @@ The action's own dependencies are hash-pinned and zizmor-audited in CI on every 
 | Agent step fails immediately: `Access denied by policy settings` | The organization's Copilot CLI policy is disabled or the organization has no configured Copilot plan. Enable "Allow use of Copilot CLI billed to the organization", or use the `copilot-github-token` override. |
 | Run fails at "Check deliverables exist" | The agent ran but produced no report. Read `agent-run.log` in the run artifact — the failure evidence is there. The Teams card for a failed run says so explicitly. |
 | Alert fetch fails / zero alerts unexpectedly | `GH_TRIAGE_TOKEN` is missing Dependabot alerts: read on the repository, or Dependabot alerts are disabled. A genuine zero-alert state is reported as a normal clean run, not an error. |
+| Agent stops mid-run: `You have exceeded your monthly quota` | The Copilot plan billing the run is out of monthly credits. On the `copilot-github-token` path this is that user's personal allowance — each triage run consumes credits in proportion to alert count. Wait for the monthly reset, use a different Copilot-licensed user's token, or prefer the org-billed default path. The run fails loudly (report missing ⇒ deliverables check fails; Teams gets a failure card). |
 | actionlint/zizmor flag `copilot-requests` as an unknown permission | False positive: the permission is real but newer than the linters' permission lists (zizmor ≤1.29, actionlint ≤1.7.10). Do not remove the permission. |
 
 ## Roadmap
