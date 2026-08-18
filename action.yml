@@ -71,13 +71,11 @@ inputs:
     required: false
     default: ""
   agent:
-    description: "Agent CLI to run the triage. v1 supports: copilot."
-    required: false
-    default: copilot
+    description: "Agent CLI to run the triage. v1 supports: copilot; other values fail fast."
+    required: true
   model:
-    description: Model the agent CLI uses.
-    required: false
-    default: claude-sonnet-5
+    description: Model the agent CLI uses (e.g. claude-sonnet-5).
+    required: true
   k9-mcp-url:
     description: k9 MCP server URL.
     required: false
@@ -98,13 +96,18 @@ runs:
       shell: bash
       env:
         AGENT: ${{ inputs.agent }}
+        MODEL: ${{ inputs.model }}
         DEPS_COMMAND: ${{ inputs.deps-command }}
       run: |
+        # The runner does not enforce required: on action inputs; do it here.
         if [ "$AGENT" != "copilot" ]; then
-          echo "::error::agent '$AGENT' is not yet supported (v1 supports: copilot)"
+          echo "::error::agent '$AGENT' is not supported (v1 supports: copilot)"
           exit 1
         fi
-        # The runner does not enforce required: on action inputs; do it here.
+        if [ -z "$MODEL" ]; then
+          echo "::error::model is required (e.g. claude-sonnet-5)"
+          exit 1
+        fi
         if [ -z "$DEPS_COMMAND" ]; then
           echo "::error::deps-command is required: installed dependencies are essential for accurate reachability analysis"
           exit 1

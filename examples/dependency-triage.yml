@@ -36,6 +36,8 @@ jobs:
           k9-client-secret: ${{ secrets.K9_CLIENT_SECRET }}
           github-token: ${{ secrets.GH_TRIAGE_TOKEN }}
           teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          agent: copilot
+          model: claude-sonnet-5
           # deps-command (required) installs your dependencies before the
           # agent analyzes the repo: installed dependency trees are essential
           # for accurate reachability analysis. test-command gates fix PRs —

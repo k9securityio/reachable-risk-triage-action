@@ -35,6 +35,8 @@ jobs:
           k9-client-secret: ${{ secrets.K9_CLIENT_SECRET }}
           github-token: ${{ secrets.GH_TRIAGE_TOKEN }}
           teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          agent: copilot
+          model: claude-sonnet-5
           deps-command: "npm ci"
           test-command: "npm test"
 ```
@@ -79,8 +81,8 @@ Repository (or organization) Actions secrets:
 | `test-command` | no | `""` | Repo's test command; unset ⇒ no fix PRs, report only |
 | `teams-webhook-url` | no | `""` | Teams Workflows webhook; unset ⇒ no Teams notification |
 | `copilot-github-token` | no | Actions token | Copilot auth override (see Secrets) |
-| `agent` | no | `copilot` | Agent CLI. v1 supports `copilot`; other values fail fast |
-| `model` | no | `claude-sonnet-5` | Model the agent CLI uses |
+| `agent` | yes | — | Agent CLI. v1 supports `copilot`; other values fail fast |
+| `model` | yes | — | Model the agent CLI uses |
 | `k9-mcp-url` | no | `https://mcp.k9security.io/mcp` | k9 MCP server URL |
 | `k9-auth-domain` | no | `auth.k9security.io` | k9 OAuth token domain |
 | `k9-audience` | no | `https://mcp.k9security.io/` | OAuth audience for the k9 MCP server |
