@@ -1,29 +1,31 @@
 # Reachable Risk Triage Action
 
-Scheduled dependency-alert triage for your repository, powered by
-[k9 Security](https://www.k9security.io/)'s Reachable Risk workflow. On a cron you choose, an AI
-agent running inside your GitHub Actions job scores **every** open Dependabot alert with the k9
-MCP server's risk rubric, publishes a full triage report, files one GitHub issue per actionable
-finding, and posts the outcome to Microsoft Teams. No human runs anything.
+Scheduled dependency-alert triage for your repository, built on
+[k9 Security](https://www.k9security.io/)'s
+[Reachable Risk](https://www.k9security.io/lp/reachable-risk/) workflow. On a cron you choose, an AI
+agent runs inside your GitHub Actions job. It scores every open Dependabot alert against the k9
+risk rubric (all of them; severity is not risk), publishes a full triage report, files one
+GitHub issue per actionable finding, and posts the outcome to Microsoft Teams. No human runs
+anything.
 
 The pipeline is verified end to end: 127 open alerts scored across 204 execution-context
 verdicts in a 24-minute run, report published, the one actionable finding filed as an issue,
 Teams card delivered.
 
-The k9 MCP server stays the source of truth for the triage procedure — every run fetches the
+The k9 MCP server stays the source of truth for the triage procedure. Every run fetches the
 current workflow guidance and risk rubric from the server, so scoring improvements reach you
 without an action upgrade.
 
 ## Quickstart
 
-1. Meet the [prerequisites](#prerequisites) and create the [secrets](#secrets).
+1. Check the [prerequisites](#prerequisites) and create the [secrets](#secrets).
 2. Copy [`examples/dependency-triage.yml`](examples/dependency-triage.yml) to
    `.github/workflows/dependency-triage.yml` in your repository.
 3. Run it once by hand (Actions → dependency-alert-triage → Run workflow) and read the job
    summary.
 
-The caller workflow is ~15 lines. The `permissions`, `concurrency`, and `timeout-minutes` blocks
-in the example must stay in your workflow — GitHub does not let a composite action declare them.
+The caller workflow is ~15 lines. GitHub does not let a composite action declare `permissions`,
+`concurrency`, or `timeout-minutes`, so those blocks in the example must stay in your workflow.
 
 ```yaml
 jobs:
@@ -46,7 +48,8 @@ jobs:
    workflow), billed to your organization's Copilot plan. Confirm the organization policy
    **"Allow use of Copilot CLI billed to the organization"** is enabled (Organization Settings →
    Copilot → Policies; it is on by default).
-2. **A k9 Security account** with the Reachable Risk plan (`score_risk` access).
+2. **A k9 Security account** with the
+   [Reachable Risk](https://www.k9security.io/lp/reachable-risk/) plan (`score_risk` access).
 3. **Dependabot alerts enabled** on the repository.
 4. Optional: **a Microsoft Teams channel** where run outcomes should be announced.
 
