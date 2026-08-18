@@ -61,8 +61,8 @@ PROCEDURE (the canonical text lives on the k9 MCP server):
       unverified fix PR is worse than none.
    c. Otherwise prepare the fix on a branch named k9-triage/<package>: apply
       the minimal version bump covering every actionable finding on that
-      package (one branch and one PR per package), install dependencies with
-      DEPS_COMMAND (if set), then run TEST_COMMAND. Follow any
+      package (one branch and one PR per package), re-run DEPS_COMMAND to
+      install the bumped dependencies, then run TEST_COMMAND. Follow any
       dependency-management conventions in this project's contributor docs.
       - Tests pass: push the branch and open a PR titled
         'fix(deps): bump <package> to <fixed version> (<vuln ids>)', labeled
@@ -72,7 +72,9 @@ PROCEDURE (the canonical text lives on the k9 MCP server):
         reachability basis), and a link to this run:
         ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
       - Tests fail: do not open a PR; put the failing output in the report.
-   Configured commands (empty means not configured):
+   Configured commands (this repository's dependencies were already installed
+   with DEPS_COMMAND before this run; an empty TEST_COMMAND means no test
+   command is configured):
      DEPS_COMMAND: ${K9_DEPS_COMMAND}
      TEST_COMMAND: ${K9_TEST_COMMAND}
 

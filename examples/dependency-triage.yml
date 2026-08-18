@@ -36,8 +36,10 @@ jobs:
           k9-client-secret: ${{ secrets.K9_CLIENT_SECRET }}
           github-token: ${{ secrets.GH_TRIAGE_TOKEN }}
           teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
-          # Your repo's dependency-install and test commands. Fix PRs are
-          # opened only when the test command passes on the bumped branch;
-          # leave test-command unset to get reports without fix PRs.
+          # deps-command (required) installs your dependencies before the
+          # agent analyzes the repo: installed dependency trees are essential
+          # for accurate reachability analysis. test-command gates fix PRs —
+          # a PR opens only when it passes on the bumped branch; leave it
+          # unset to get reports without fix PRs.
           deps-command: "npm ci"
           test-command: "npm test"

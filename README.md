@@ -39,9 +39,11 @@ jobs:
           test-command: "npm test"
 ```
 
-`deps-command` and `test-command` are your repository's own install and test commands. Fix PRs
-are opened only when the test command passes on the bumped branch; leave `test-command` unset to
-get triage reports without fix PRs.
+`deps-command` and `test-command` are your repository's own install and test commands.
+`deps-command` is required and runs before the agent analyzes the repo: reachability analysis
+inspects the installed dependency trees (site-packages, node_modules), not just the manifests.
+Fix PRs are opened only when the test command passes on the bumped branch; leave `test-command`
+unset to get triage reports without fix PRs.
 
 ## Prerequisites
 
@@ -73,7 +75,7 @@ Repository (or organization) Actions secrets:
 | `k9-client-id` | yes | — | k9 Service Client (M2M) id |
 | `k9-client-secret` | yes | — | k9 Service Client (M2M) secret |
 | `github-token` | yes | — | Fine-grained PAT for `gh` (see Secrets) |
-| `deps-command` | no | `""` | Repo's dependency-install command, run before tests on a fix branch |
+| `deps-command` | yes | — | Repo's dependency-install command; runs before analysis (reachability needs installed deps) and again on fix branches |
 | `test-command` | no | `""` | Repo's test command; unset ⇒ no fix PRs, report only |
 | `teams-webhook-url` | no | `""` | Teams Workflows webhook; unset ⇒ no Teams notification |
 | `copilot-github-token` | no | Actions token | Copilot auth override (see Secrets) |

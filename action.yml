@@ -39,11 +39,12 @@ inputs:
     required: true
   deps-command:
     description: >-
-      Command that installs this repository's dependencies before tests
-      (e.g. `npm ci`, `make venv-dev`). Optional; used only when preparing
-      fix PRs.
-    required: false
-    default: ""
+      Command that installs this repository's dependencies (e.g. `npm ci`,
+      `make venv-dev`). Required: the action runs it before the agent
+      analyzes the repo — installed dependency trees are essential for
+      accurate reachability analysis — and again on fix branches before
+      tests.
+    required: true
   test-command:
     description: >-
       Command that runs this repository's test suite (e.g. `npm test`,
@@ -93,13 +94,19 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Validate agent input
+    - name: Validate inputs
       shell: bash
       env:
         AGENT: ${{ inputs.agent }}
+        DEPS_COMMAND: ${{ inputs.deps-command }}
       run: |
         if [ "$AGENT" != "copilot" ]; then
           echo "::error::agent '$AGENT' is not yet supported (v1 supports: copilot)"
+          exit 1
+        fi
+        # The runner does not enforce required: on action inputs; do it here.
+        if [ -z "$DEPS_COMMAND" ]; then
+          echo "::error::deps-command is required: installed dependencies are essential for accurate reachability analysis"
           exit 1
         fi
 
@@ -117,6 +124,14 @@ runs:
       env:
         GH_TOKEN: ${{ inputs.github-token }}
       run: gh auth setup-git
+
+    - name: Install repository dependencies
+      # Reachability analysis inspects the installed dependency trees
+      # (site-packages, node_modules), so install before the agent runs.
+      shell: bash
+      env:
+        K9_DEPS_COMMAND: ${{ inputs.deps-command }}
+      run: eval "$K9_DEPS_COMMAND"
 
     - name: Mint k9 MCP token (client_credentials)
       shell: bash
