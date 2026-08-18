@@ -20,7 +20,7 @@ without an action upgrade.
 3. Run it once by hand (Actions → dependency-alert-triage → Run workflow) and read the job
    summary.
 
-The caller workflow is ~15 lines. GitHub does not let a composite action declare `permissions`,
+The caller workflow is one job with a single step. GitHub does not let a composite action declare `permissions`,
 `concurrency`, or `timeout-minutes`, so those blocks in the example must stay in your workflow.
 
 ```yaml

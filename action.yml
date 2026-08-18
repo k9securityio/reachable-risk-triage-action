@@ -12,7 +12,7 @@ name: Reachable Risk Triage
 description: >-
   Scheduled dependency alert triage with the k9 Security MCP server: score
   every open Dependabot alert against the k9 risk rubric, publish a full
-  triage report to the job summary and an artifact, file GitHub issues for
+  triage report to the job summary and an artifact, open tested fix PRs for
   actionable findings, and notify Microsoft Teams.
 author: k9 Security
 
