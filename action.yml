@@ -208,6 +208,14 @@ runs:
         test -s out/dependency-triage-report.md || { echo "::error::missing out/dependency-triage-report.md"; exit 1; }
         jq -e '.schema == "k9-triage-summary/v2"' out/triage-summary.json >/dev/null \
           || { echo "::error::missing/invalid out/triage-summary.json"; exit 1; }
+        # Deterministic run-date stamp. Agents have written the rubric
+        # version's date into .date despite the prompt saying otherwise, and
+        # it renders straight onto the Teams card — so the action stamps the
+        # run date from its own clock, unconditionally.
+        run_date=$(date -u +%Y-%m-%d)
+        jq --arg d "$run_date" '.date = $d' out/triage-summary.json > "$RUNNER_TEMP/triage-summary.json"
+        mv "$RUNNER_TEMP/triage-summary.json" out/triage-summary.json
+        echo "stamped triage-summary.json date=$run_date"
 
     - name: Publish report (job summary)
       if: always()

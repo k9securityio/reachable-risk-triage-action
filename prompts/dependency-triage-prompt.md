@@ -89,7 +89,7 @@ PROCEDURE (the canonical text lives on the k9 MCP server):
      {
        "schema": "k9-triage-summary/v2",
        "repo": "<owner/repo>",
-       "date": "<today's date, YYYY-MM-DD — the date this run executed, not the rubric or workflow version date>",
+       "date": "<today's date, YYYY-MM-DD — the date this run executed, not the rubric or workflow version date; the action overwrites this field with its own clock after the run>",
        "status": "ok" | "clean" | "blocked",
        "alerts_total": <batch_stats.alerts_total, or 0>,
        "findings_total": <batch_stats.findings_total (verdict count), or 0>,
