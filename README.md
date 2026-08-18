@@ -8,10 +8,6 @@ risk rubric (all of them; severity is not risk), publishes a full triage report,
 GitHub issue per actionable finding, and posts the outcome to Microsoft Teams. No human runs
 anything.
 
-The pipeline is verified end to end: 127 open alerts scored across 204 execution-context
-verdicts in a 24-minute run, report published, the one actionable finding filed as an issue,
-Teams card delivered.
-
 The k9 MCP server stays the source of truth for the triage procedure. Every run fetches the
 current workflow guidance and risk rubric from the server, so scoring improvements reach you
 without an action upgrade.
