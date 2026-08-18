@@ -9,9 +9,10 @@ on:
     - cron: "0 14 * * 2" # weekly, Tuesday 14:00 UTC
   workflow_dispatch:
 
+# Fix branches and PRs are pushed with the GH_TRIAGE_TOKEN PAT, not the
+# Actions token, so no write permission is needed here.
 permissions:
   contents: read # checkout of this repo (manifests, .k9security/risk-context.yaml)
-  issues: write # file one issue per actionable finding
   copilot-requests: write # authenticates Copilot CLI via the Actions token
 
 # Never let two triage runs overlap (a manual dispatch during the cron run
@@ -35,3 +36,8 @@ jobs:
           k9-client-secret: ${{ secrets.K9_CLIENT_SECRET }}
           github-token: ${{ secrets.GH_TRIAGE_TOKEN }}
           teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          # Your repo's dependency-install and test commands. Fix PRs are
+          # opened only when the test command passes on the bumped branch;
+          # leave test-command unset to get reports without fix PRs.
+          deps-command: "npm ci"
+          test-command: "npm test"

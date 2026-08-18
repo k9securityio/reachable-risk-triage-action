@@ -13,7 +13,7 @@ RUN_URL="${RUN_URL:-}"
 JOB_STATUS="${JOB_STATUS:-unknown}"
 SUMMARY_FILE="${SUMMARY_FILE:-out/triage-summary.json}"
 
-if jq -e '.schema == "k9-triage-summary/v1"' "$SUMMARY_FILE" >/dev/null 2>&1; then
+if jq -e '.schema == "k9-triage-summary/v2"' "$SUMMARY_FILE" >/dev/null 2>&1; then
   card=$(jq --arg run_url "$RUN_URL" '
     {
       type: "message",
@@ -34,7 +34,8 @@ if jq -e '.schema == "k9-triage-summary/v1"' "$SUMMARY_FILE" >/dev/null 2>&1; th
                 { title: "REVIEW",     value: (.verdicts.REVIEW // 0 | tostring) },
                 { title: "SCHEDULE",   value: (.verdicts.SCHEDULE // 0 | tostring) },
                 { title: "DEFER",      value: (.verdicts.DEFER // 0 | tostring) },
-                { title: "Issues filed", value: (.issues_filed | length | tostring) }
+                { title: "Fix PRs opened", value: (.prs_opened | length | tostring) },
+                { title: "Dependabot PRs ready", value: (.prs_ready | length | tostring) }
             ]},
             { type: "TextBlock", wrap: true, text: .detail }
           ],

@@ -33,10 +33,25 @@ inputs:
     description: >-
       Fine-grained PAT used by `gh` inside the triage agent (org-owned is
       fine; no Copilot permission needed). Required repo permissions:
-      Dependabot alerts: read + Issues: write + Contents: read. The
-      Actions-issued GITHUB_TOKEN cannot read Dependabot alerts, so a PAT is
-      required.
+      Dependabot alerts: read + Contents: write + Pull requests: write
+      (fix branches and PRs). The Actions-issued GITHUB_TOKEN cannot read
+      Dependabot alerts, so a PAT is required.
     required: true
+  deps-command:
+    description: >-
+      Command that installs this repository's dependencies before tests
+      (e.g. `npm ci`, `make venv-dev`). Optional; used only when preparing
+      fix PRs.
+    required: false
+    default: ""
+  test-command:
+    description: >-
+      Command that runs this repository's test suite (e.g. `npm test`,
+      `make quick`). Fix PRs are opened only when this passes on the bumped
+      branch. When empty, the action never opens fix PRs: recommended bumps
+      are described in the report instead.
+    required: false
+    default: ""
   teams-webhook-url:
     description: >-
       Microsoft Teams *Workflows* webhook URL (classic incoming webhooks are
@@ -90,11 +105,18 @@ runs:
 
     - name: Check out the repository under triage
       # The triage agent reads the repo's manifests and
-      # .k9security/risk-context.yaml; nothing after checkout uses git
-      # credentials (gh authenticates via env tokens).
+      # .k9security/risk-context.yaml. Checkout persists no credentials;
+      # fix-branch pushes authenticate through gh's credential helper,
+      # which reads the PAT from the environment at push time.
       uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       with:
         persist-credentials: false
+
+    - name: Route git pushes through gh's credential helper
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+      run: gh auth setup-git
 
     - name: Mint k9 MCP token (client_credentials)
       shell: bash
@@ -145,6 +167,8 @@ runs:
         # alerts), so pin Copilot explicitly or it grabs the PAT and fails.
         COPILOT_GITHUB_TOKEN: ${{ inputs.copilot-github-token || github.token }}
         GH_TOKEN: ${{ inputs.github-token }}
+        K9_DEPS_COMMAND: ${{ inputs.deps-command }}
+        K9_TEST_COMMAND: ${{ inputs.test-command }}
       run: |
         mkdir -p out
         export COPILOT_HOME="$RUNNER_TEMP/copilot-home"
@@ -152,7 +176,7 @@ runs:
         jq -n --arg url "$K9_MCP_URL" --arg auth "Bearer $(cat "$RUNNER_TEMP/k9-mcp-token")" \
           '{mcpServers: {k9: {type: "http", url: $url, headers: {Authorization: $auth}}}}' \
           > "$COPILOT_HOME/mcp-config.json"
-        copilot -p "$(envsubst '$GITHUB_REPOSITORY $GITHUB_SERVER_URL $GITHUB_RUN_ID' \
+        copilot -p "$(envsubst '$GITHUB_REPOSITORY $GITHUB_SERVER_URL $GITHUB_RUN_ID $K9_DEPS_COMMAND $K9_TEST_COMMAND' \
             < "$GITHUB_ACTION_PATH/prompts/dependency-triage-prompt.md")" \
           --model "$MODEL" \
           --allow-tool 'k9' --allow-tool 'shell' --allow-tool 'write' \
@@ -164,7 +188,7 @@ runs:
       shell: bash
       run: |
         test -s out/dependency-triage-report.md || { echo "::error::missing out/dependency-triage-report.md"; exit 1; }
-        jq -e '.schema == "k9-triage-summary/v1"' out/triage-summary.json >/dev/null \
+        jq -e '.schema == "k9-triage-summary/v2"' out/triage-summary.json >/dev/null \
           || { echo "::error::missing/invalid out/triage-summary.json"; exit 1; }
 
     - name: Publish report (job summary)

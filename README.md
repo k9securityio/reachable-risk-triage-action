@@ -4,8 +4,9 @@ Triage your repository's Dependabot alerts on a schedule you choose, prioritized
 actually reachable and exploitable in your code. An AI agent runs inside your GitHub Actions job
 and scores every open alert with the k9 Security
 [Reachable Risk](https://www.k9security.io/lp/reachable-risk/) rubric,
-publishes a full triage report, files one GitHub issue per actionable finding, and posts the
-outcome to Microsoft Teams. The agent analyzes, the action orchestrates, and engineers decide using evidence.
+publishes a full triage report, opens a tested fix PR for each finding worth fixing, and posts
+the outcome to Microsoft Teams. The agent analyzes, the action orchestrates, and engineers
+decide using evidence: nothing merges or dismisses without you.
 
 The k9 MCP server stays the source of truth for the triage procedure. Every run fetches the
 current workflow guidance and risk rubric from the server, so scoring improvements reach you
@@ -34,7 +35,13 @@ jobs:
           k9-client-secret: ${{ secrets.K9_CLIENT_SECRET }}
           github-token: ${{ secrets.GH_TRIAGE_TOKEN }}
           teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          deps-command: "npm ci"
+          test-command: "npm test"
 ```
+
+`deps-command` and `test-command` are your repository's own install and test commands. Fix PRs
+are opened only when the test command passes on the bumped branch; leave `test-command` unset to
+get triage reports without fix PRs.
 
 ## Prerequisites
 
@@ -55,7 +62,7 @@ Repository (or organization) Actions secrets:
 | Secret | Value |
 | --- | --- |
 | `K9_CLIENT_ID` / `K9_CLIENT_SECRET` | A k9 **Service Client (M2M)**: in the k9 app, My Account → Service Clients (M2M) → Create, then copy the id and secret (the secret is shown once). The action mints a fresh short-lived token from these on every run; there is nothing to rotate on a schedule and no token that expires in a drawer. |
-| `GH_TRIAGE_TOKEN` | A fine-grained PAT (organization-owned is fine) with repository permissions **Dependabot alerts: read**, **Issues: write**, **Contents: read** on the repository. Used only by `gh` to read alerts and file issues. It does NOT need any Copilot permission. The Actions-issued `GITHUB_TOKEN` cannot read Dependabot alerts, which is why a PAT is required. |
+| `GH_TRIAGE_TOKEN` | A fine-grained PAT (organization-owned is fine) with repository permissions **Dependabot alerts: read**, **Contents: write**, **Pull requests: write** on the repository. Used only by `gh` to read alerts and to push fix branches and open fix PRs. It does NOT need any Copilot permission. The Actions-issued `GITHUB_TOKEN` cannot read Dependabot alerts, which is why a PAT is required. |
 | `TEAMS_WEBHOOK_URL` (optional) | See [Create the Teams webhook](#create-the-teams-webhook). When unset, the run reports to the job summary and artifact only. |
 | `COPILOT_GITHUB_TOKEN` (optional) | Only for organizations that cannot hold a Copilot Business plan (GitHub has paused new Copilot Business signups for Free/Team-plan organizations): a classic token of a Copilot-licensed user, passed via the `copilot-github-token` input. When set, it overrides the org-billed path and bills that user's plan. Do NOT use an org-owned fine-grained PAT — it cannot carry the account-level Copilot Requests permission ([github/copilot-cli#223](https://github.com/github/copilot-cli/issues/223)). |
 
@@ -66,6 +73,8 @@ Repository (or organization) Actions secrets:
 | `k9-client-id` | yes | — | k9 Service Client (M2M) id |
 | `k9-client-secret` | yes | — | k9 Service Client (M2M) secret |
 | `github-token` | yes | — | Fine-grained PAT for `gh` (see Secrets) |
+| `deps-command` | no | `""` | Repo's dependency-install command, run before tests on a fix branch |
+| `test-command` | no | `""` | Repo's test command; unset ⇒ no fix PRs, report only |
 | `teams-webhook-url` | no | `""` | Teams Workflows webhook; unset ⇒ no Teams notification |
 | `copilot-github-token` | no | Actions token | Copilot auth override (see Secrets) |
 | `agent` | no | `copilot` | Agent CLI. v1 supports `copilot`; other values fail fast |
@@ -94,11 +103,13 @@ produce a report posts an explicit failure card — silence is never success.
   pages require GitHub login with repository access, and artifacts expire with your
   run-retention setting (default 90 days). The durable longitudinal record is k9's
   scored-findings corpus, which every run feeds automatically.
-- **Issues**: one per actionable finding (FIX_TODAY, REVIEW, or SCHEDULE past its fix-release
-  cooldown), labeled `dependency-triage`, each carrying that finding's verdict and evidence and
-  a link to its run. Re-runs recognize existing open issues by finding key and do not duplicate
-  them. The full report is never put in an issue (issue bodies cap at 65,536 characters; large
-  reports exceed that).
+- **Fix PRs**: one per package with actionable findings (FIX_TODAY, or SCHEDULE past its
+  fix-release cooldown), labeled `dependency-triage`, opened only after your test command passes
+  on the bumped branch; a failing test run lands in the report instead of a PR. When an open
+  Dependabot PR already covers the fix, the report marks it ready-to-merge rather than
+  duplicating it. REVIEW findings are reported but never acted on — a REVIEW means the evidence
+  supports no recommendation yet, so the decision stays with you. Nothing is ever merged or
+  dismissed by the action.
 - **Counts on the Teams card**: "Alerts scored" counts alerts; FIX_TODAY/REVIEW/SCHEDULE/DEFER
   count **verdicts** — one per execution context an alert's code runs in — so verdicts
   legitimately sum higher than alerts on any project with more than one execution context. The
