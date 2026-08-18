@@ -8,13 +8,13 @@ A composite GitHub Action (`k9securityio/reachable-risk-triage-action`) that run
 
 ## Commands
 
-There is no build or unit-test step. CI (`.github/workflows/ci.yml`) runs three checks; run them locally before pushing:
+There is no build or unit-test step. Run the checks CI enforces (`.github/workflows/ci.yml`) locally before pushing:
 
 ```bash
-shellcheck scripts/*.sh
-actionlint -ignore 'unknown permission scope "copilot-requests"' .github/workflows/*.yml examples/*.yml
-zizmor --min-severity low . examples/dependency-triage.yml
+make quick   # metadata + shellcheck + actionlint + zizmor
 ```
+
+Individual checks: `make run-shellcheck`, `make run-actionlint`, `make run-zizmor`.
 
 To exercise the guidance-fetch script against the real k9 MCP server (needs a bearer token minted via client_credentials — see the "Mint k9 MCP token" step in `action.yml` for the curl):
 
