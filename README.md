@@ -1,10 +1,9 @@
 # Reachable Risk Triage Action
 
-Scheduled dependency-alert triage for your repository, built on
-[k9 Security](https://www.k9security.io/)'s
-[Reachable Risk](https://www.k9security.io/lp/reachable-risk/) workflow. On a cron you choose, an AI
-agent runs inside your GitHub Actions job. It scores every open Dependabot alert against the k9
-risk rubric (all of them; severity is not risk), publishes a full triage report, files one
+Triage all Dependabot alerts in your repository by prioritizing what is actually reachable and exploitable in your code using the k9 Security
+[Reachable Risk](https://www.k9security.io/lp/reachable-risk/) workflow. On a schedule you choose, an AI
+agent analyzes each alert inside your GitHub Actions job. It scores every open Dependabot alert against the k9
+risk rubric (all alerts; becasue severity is not risk), publishes a full triage report, files one
 GitHub issue per actionable finding, and posts the outcome to Microsoft Teams. No human runs
 anything.
 
