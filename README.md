@@ -3,9 +3,9 @@
 Triage your repository's Dependabot alerts on a schedule you choose, prioritized by what is
 actually reachable and exploitable in your code. An AI agent runs inside your GitHub Actions job
 and scores every open alert with the k9 Security
-[Reachable Risk](https://www.k9security.io/lp/reachable-risk/) rubric (severity is not risk),
+[Reachable Risk](https://www.k9security.io/lp/reachable-risk/) rubric,
 publishes a full triage report, files one GitHub issue per actionable finding, and posts the
-outcome to Microsoft Teams. No human runs anything.
+outcome to Microsoft Teams. The agent analyzes, the action orchestrates, and engineers decide using evidence.
 
 The k9 MCP server stays the source of truth for the triage procedure. Every run fetches the
 current workflow guidance and risk rubric from the server, so scoring improvements reach you
