@@ -144,7 +144,7 @@ Deadline: Phases B and C finish before 2026-10-19, when the `ubuntu-latest` roll
 
 Deliverable: a merged PR where CI is green on `ubuntu-24.04` and `ubuntu-26.04`, and the README/example tell callers which images are supported and how to set up the triage job.
 
-1. Create branch `CLOUD-4198-ubuntu-26-runner-readiness` from `main`.
+1. Work on branch `CLOUD-4198-ubuntu-26-runner-readiness` (already created from `main`; it carries this task doc's commits).
 2. **README Prerequisites (support policy).** Add item 5: *"A GitHub-hosted Ubuntu runner. The action supports the Ubuntu images GitHub currently supports — today `ubuntu-24.04` and `ubuntu-26.04` (`ubuntu-latest` resolves to one of them) — and is tested on x64. Use the image your CI uses; see [Run triage like your CI](#run-triage-like-your-ci)."*
 3. **README "mirror your CI job" guidance.** After the paragraph that starts "`deps-command` and `test-command` are your repository's own…", add a `### Run triage like your CI` subsection (anchor used by step 2). Content:
    - Give the triage job the same `runs-on` and toolchain setup steps (e.g. `actions/setup-python`, `actions/setup-node`) as the CI job that runs your tests. Then `test-command` passes in triage whenever it passes in CI.
