@@ -199,21 +199,27 @@ Deliverable: redacted Copilot CLI debug evidence in a demo job log showing why `
 
 Deliverable: a harness run on the fixed action branch reaches the k9 MCP server and the triage completes report-only, with the deliverables check green.
 
-7. **Apply the fix that matches the diagnosis,** trying each in order and re-running the harness (step 4, but letting the run finish) after each change:
-   - a. **Copilot CLI 1.0.98** (Q5 → Option 1). In "Install GitHub Copilot CLI", change the pin to `@github/copilot@1.0.98`, keeping the `zizmor: ignore[adhoc-packages]` comment. Update the pin comment ("version-pinned to the release the verified runs used"). Check that the 1.0.98 flags still work (`--allow-tool`, `--no-ask-user`, and `--model` against the help output).
-   - b. **If it's still a race** (cause 1): a supported mitigation in the agent step, such as passing the server with `--additional-mcp-config @"$COPILOT_HOME/mcp-config.json"` instead of relying on the config file in `COPILOT_HOME`, if the diagnosis shows that path is evaluated after policy resolves. Re-run.
-   - c. **To confirm a cause only** (Q4 → Option 1): one harness run with `COPILOT_EXP_COPILOT_CLI_MCP_ALLOWLIST=false` set on the agent step, in a separate commit that gets reverted straight away. Never merged.
-   - d. **If the Actions token is rejected and nothing in our control fixes it** (Q7 → Option 1):
+7. ✅ **Apply the fix that matches the diagnosis,** trying each in order and re-running the harness (step 4, but letting the run finish) after each change:
+   - a. ✅ **Copilot CLI 1.0.98** (Q5 → Option 1). In "Install GitHub Copilot CLI", change the pin to `@github/copilot@1.0.98`, keeping the `zizmor: ignore[adhoc-packages]` comment. Update the pin comment ("version-pinned to the release the verified runs used"). Check that the 1.0.98 flags still work (`--allow-tool`, `--no-ask-user`, and `--model` against the help output).
+   - b. ❌ **If it's still a race** (cause 1): a supported mitigation in the agent step, such as passing the server with `--additional-mcp-config @"$COPILOT_HOME/mcp-config.json"` instead of relying on the config file in `COPILOT_HOME`, if the diagnosis shows that path is evaluated after policy resolves. Re-run.
+   - c. ❌ **To confirm a cause only** (Q4 → Option 1): one harness run with `COPILOT_EXP_COPILOT_CLI_MCP_ALLOWLIST=false` set on the agent step, in a separate commit that gets reverted straight away. Never merged.
+   - d. ❌ **If the Actions token is rejected and nothing in our control fixes it** (Q7 → Option 1):
      - file an upstream issue at github/copilot-cli with the redacted evidence;
      - document the limitation in the README (Prerequisites note and troubleshooting row), naming `copilot-github-token` as the working path for people who already hold an individual plan;
      - open a separate CLOUD Jira issue to prioritise Claude Code support behind the `agent` input.
-8. **Remove the diagnostics.** `git revert` the `chore(diag)` commit (and any flag-test commit), leaving only the fix. Run `make quick`.
-9. **Verify deliverable.** A harness run on the cleaned branch completes on `ubuntu-latest` without cancelling:
+   - Result: **7a fixed it.** `1da3541` pins `@github/copilot@1.0.98`. Harness run [38644156012](https://github.com/k9securityio/demo-k9-cloudsec-agent/actions/runs/38644156012) (with diagnostics, report-only) completed green in about 29 min: no `blocked by policy`; k9 MCP calls `score_risk` ×16, `lookup_vulns` ×4, `lookup_kev` ×2, `lookup_epss` ×2, plus `get_basis_procedure`, `get_risk_scoring_rubric` and `gather_risk_context`; the deliverables check passed; leak check 0. The 1.0.98 debug excerpt (the first 400 matching lines) has no registry-policy decision line, so the evidence for the fix is the behaviour above, not a logged status. 7b–7d weren't needed (the allowlist flag was never used).
+   - New 1.0.98 behaviour to watch: shell commands touching paths **outside the workspace** are denied in headless mode (`✗ Denied, no one to approve`), even with `--allow-tool 'shell'`. Seen twice, `find / …` and a mistyped `cat /out/…`, and the agent recovered both times. Not yet exercised: `test-command` on fix branches, `git push`, `gh pr create` (the harness is report-only). Phase C's full runs must check for this denial.
+8. ✅ **Remove the diagnostics.** `git revert` the `chore(diag)` commit (and any flag-test commit), leaving only the fix. Run `make quick`.
+   - `a639445` reverts `2d2f6e1`. `git diff main -- action.yml` now shows only the pin change; `make quick` clean.
+9. ✅ **Verify deliverable.** A harness run on the cleaned branch completes on `ubuntu-latest` without cancelling:
    - the agent log has no `blocked by policy` line, and shows k9 tool calls (e.g. `score_risk`);
    - "Check deliverables exist" passes with `k9-triage-summary/v2`;
    - the job summary has the report.
 
    Record the run URL. If step 7d applied instead, the deliverable is the upstream issue, the README limitation and the new Jira issue.
+
+   - Clean run [38647781170](https://github.com/k9securityio/demo-k9-cloudsec-agent/actions/runs/38647781170) (`a639445`, no diagnostics, report-only, `ubuntu-latest`) completed green in about 32 min: `blocked by policy` ×0; `score_risk` ×15 plus `get_basis_procedure`, `get_risk_scoring_rubric`, `lookup_kev` and `lookup_epss`; the deliverables check passed (`stamped triage-summary.json`); leak check 0.
+   - Path denials (`Denied, no one to approve`) ×4, all reachability probes outside the workspace: `~/.local/lib/python3.12/site-packages`, `pip install pipdeptree`, and `find /`. **Not a regression**: the last good 1.0.80 run (2026-09-29, [36579559026](https://github.com/k9securityio/demo-k9-cloudsec-agent/actions/runs/36579559026)) had 5 of the same denials (`Permission denied and could not request permission from user`). Proposed as a separate follow-on: decide whether the agent should get read access to installed dependency trees outside the workspace (`--add-dir` for site-packages/node_modules), weighed against secrets on the runner.
 
 ### Phase C — Docs, PR, and verification on both images
 
