@@ -112,11 +112,17 @@ context.
 
 ## Prerequisites
 
-1. **GitHub Copilot for your organization.** The action authenticates the Copilot CLI with the
-   built-in Actions token plus the `copilot-requests: write` permission (declared in the example
-   workflow), billed to your organization's Copilot plan. Confirm the organization policy
-   "Allow use of Copilot CLI billed to the organization" is enabled (Organization Settings →
-   Copilot → Policies; it is on by default).
+1. **GitHub Copilot.** One of:
+   - **A Copilot Business or Enterprise plan on the organization that owns the repository**
+     (recommended). The action authenticates the Copilot CLI with the built-in Actions token plus
+     the `copilot-requests: write` permission (declared in the example workflow). Usage is billed
+     to the organization, not to any seat holder. In Organization Settings → Copilot → Policies,
+     confirm "Allow use of Copilot CLI billed to the organization" is enabled (it is on by
+     default), and that MCP servers are allowed: the agent calls the k9 MCP server.
+   - **An existing individual Copilot Pro or Pro+ plan**, used through the
+     [`COPILOT_GITHUB_TOKEN`](#secrets) secret. GitHub paused new sign-ups for individual plans in
+     April 2026 ([announcement](https://github.com/orgs/community/discussions/192963)), so this
+     path only works for people who already have one.
 2. **A k9 Security account** with the
    [Reachable Risk](https://www.k9security.io/lp/reachable-risk/) plan (`score_risk` access). Free to start, no credit card required.
 3. **Dependabot alerts enabled** on the repository.
@@ -135,7 +141,7 @@ Repository (or organization) Actions secrets:
 | `K9_CLIENT_ID` / `K9_CLIENT_SECRET` | A k9 Service Client (M2M): in the k9 app, My Account → Service Clients (M2M) → Create, then copy the id and secret (the secret is shown once). The action mints a fresh short-lived token from these on every run; there is nothing to rotate on a schedule and no token that expires in a drawer. |
 | `GH_TRIAGE_TOKEN` | A fine-grained PAT (organization-owned is fine) with repository permissions `Dependabot alerts: read`, `Contents: write`, and `Pull requests: write` on the repository. Used only by `gh` to read alerts, push fix branches, and open fix PRs. It needs no Copilot permission. The Actions-issued `GITHUB_TOKEN` cannot read Dependabot alerts, which is why a PAT is required. |
 | `TEAMS_WEBHOOK_URL` (optional) | See [Create the Teams webhook](#create-the-teams-webhook). When unset, the run reports to the job summary and artifact only. |
-| `COPILOT_GITHUB_TOKEN` (optional) | Only for organizations that cannot hold a Copilot Business plan (GitHub has paused new Copilot Business signups for Free/Team-plan organizations): a classic token of a Copilot-licensed user, passed via the `copilot-github-token` input. When set, it overrides the org-billed path and bills that user's plan. Do not use an org-owned fine-grained PAT: it cannot carry the account-level Copilot Requests permission ([github/copilot-cli#223](https://github.com/github/copilot-cli/issues/223)). |
+| `COPILOT_GITHUB_TOKEN` (optional) | For organizations without a Copilot Business or Enterprise plan, when a user already holds an individual Copilot Pro or Pro+ plan: a classic token of that user, passed via the `copilot-github-token` input. When set, it overrides the org-billed path and bills that user's plan. GitHub has paused new individual-plan sign-ups, so if that plan ends it can't currently be bought again; the org-billed path is the durable option. Do not use an org-owned fine-grained PAT: it cannot carry the account-level Copilot Requests permission ([github/copilot-cli#223](https://github.com/github/copilot-cli/issues/223)). |
 
 ## Inputs
 
@@ -202,7 +208,8 @@ The action's own dependencies are hash-pinned and zizmor-audited in CI on every 
 | Symptom | Cause and fix |
 | --- | --- |
 | Agent step fails immediately: `Authentication failed … ensure it has the 'Copilot Requests' permission` | A fine-grained PAT is being used for Copilot auth. Organization-owned fine-grained PATs cannot carry the account-level Copilot Requests permission (github/copilot-cli#223). Use the default org-billed path (no Copilot secret at all), or a *classic* token in `copilot-github-token`. |
-| Agent step fails immediately: `Access denied by policy settings` | The organization's Copilot CLI policy is disabled or the organization has no configured Copilot plan. Enable "Allow use of Copilot CLI billed to the organization", or use the `copilot-github-token` override. |
+| Agent step fails immediately: `Access denied by policy settings` | The organization's Copilot CLI policy is disabled or the organization has no configured Copilot plan. Enable "Allow use of Copilot CLI billed to the organization", or use the `copilot-github-token` override. On the `copilot-github-token` path, the token owner's individual plan may have ended: check their Copilot settings page. |
+| Agent log shows `Third-party MCP servers are disabled by your organization's Copilot policy` | The Copilot plan billing the run doesn't allow MCP servers, so the agent can't reach the k9 MCP server. Allow MCP servers in Organization Settings → Copilot → Policies. On the `copilot-github-token` path, the same message appears when the token owner's plan has ended. |
 | Run fails at "Check deliverables exist" | The agent ran but produced no report. Read `agent-run.log` in the run artifact: the failure evidence is there. The Teams card for a failed run says so explicitly. |
 | Fix PRs stopped opening, or `test-command` fails in triage but passes in CI | The triage job's runner image or toolchain setup differs from your CI job's, for example after GitHub moved `ubuntu-latest` to a new Ubuntu release. Read the failing test output in `agent-run.log`, then match `runs-on` and the setup steps to your CI job ([Run triage like your CI](#run-triage-like-your-ci)). |
 | Alert fetch fails / zero alerts unexpectedly | `GH_TRIAGE_TOKEN` is missing `Dependabot alerts: read` on the repository, or Dependabot alerts are disabled. A genuine zero-alert state is reported as a normal clean run, not an error. |

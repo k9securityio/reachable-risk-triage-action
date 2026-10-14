@@ -64,8 +64,9 @@ inputs:
     description: >-
       Optional override token for Copilot CLI auth. Default is the caller's
       Actions token, billed to the org's Copilot plan via the
-      `copilot-requests: write` permission. Orgs that cannot hold Copilot
-      Business set this to a classic token of a Copilot-licensed user. Do NOT
+      `copilot-requests: write` permission. Orgs without a Copilot Business or
+      Enterprise plan can set this to a classic token of a user who holds an
+      individual Copilot Pro or Pro+ plan. Do NOT
       use an org-owned fine-grained PAT: it cannot carry the account-level
       Copilot Requests permission (github/copilot-cli#223).
     required: false
