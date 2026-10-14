@@ -59,7 +59,7 @@ Options:
 
 Recommendation: Option 1, on the harness branch only. It gives the evidence we need (fetch status and policy decision), keeps tokens out of files, and the `::add-mask::` for the minted k9 token is a good hardening change to keep regardless (see Q2).
 
-Decision: TBD
+Decision: Recommendation accepted, Option 1.
 
 ### Q2. Should debug logging ship in the released action, or stay on the harness branch?
 
@@ -74,7 +74,7 @@ Options:
 
 Recommendation: Option 1 for this fix. Revisit Option 2 as a separate issue if customers report policy problems, since the README troubleshooting row from step 5 covers the known symptom.
 
-Decision: TBD
+Decision: Recommendation accepted, Option 1.
 
 ### Q3. What happens to demo-k9-cloudsec-agent's scheduled run on 2026-10-20 if this isn't fixed by then?
 
@@ -89,7 +89,7 @@ Options:
 
 Recommendation: Option 1 if the fix isn't verified by 2026-10-19. It's a small, reversible commit that keeps manual runs working.
 
-Decision: TBD
+Decision: Option 2.
 
 ### Q4. Is the MCP allowlist experiment flag acceptable at all, and under what conditions?
 
@@ -105,7 +105,7 @@ Options:
 
 Recommendation: Option 1. A published action shouldn't override customer MCP policy. If the root cause is the CLI rejecting the Actions token, the right fixes are upstream and documenting the `copilot-github-token` path.
 
-Decision: TBD
+Decision: Recommendation accepted, Option 1.
 
 ### Q5. How far should the Copilot CLI pin move, given 18 releases of behaviour change between 1.0.80 and 1.0.98?
 
@@ -120,7 +120,7 @@ Options:
 
 Recommendation: Option 1. Bisecting costs real runs, and the both-image runs (AGENTS.md rule) are the actual safety net. Note the version jump and its notable changes in the release notes.
 
-Decision: TBD
+Decision: Recommendation accepted, Option 1.
 
 ### Q6. Should this fix ship together with CLOUD-4198's held `v1.0.2`?
 
@@ -135,7 +135,7 @@ Options:
 
 Recommendation: Option 1. You've held `v1.0.2` already, the 2026-10-19 date was about docs reaching Marketplace readers during the rollout, and the action's runtime is unaffected by the image change.
 
-Decision: TBD
+Decision: Recommendation accepted, Option 1.
 
 ### Q7. If the root cause is that GitHub rejects the Actions token for the MCP policy fetch, with no workaround, what's the interim customer position?
 
@@ -150,7 +150,7 @@ Options:
 
 Recommendation: Option 1. It's honest with customers and adds a path that doesn't depend on GitHub's Copilot policy.
 
-Decision: TBD
+Decision: Recommendation accepted, Option 1.
 
 ## Detailed implementation steps
 
