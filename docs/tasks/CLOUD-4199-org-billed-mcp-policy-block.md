@@ -162,7 +162,7 @@ How to wait on runs: macOS has no `timeout`, and `gh run watch` / `gh pr checks 
 
 Deliverable: redacted Copilot CLI debug evidence in a demo job log showing why `k9` is blocked, recorded in this doc, with no secret patterns in the log.
 
-1. **Diagnostic instrumentation (action branch, temporary).** On `CLOUD-4199-org-billed-mcp-policy-block`, in one commit titled `chore(diag): temporary Copilot CLI policy diagnostics - CLOUD-4199 (revert before merge)`:
+1. ✅ **Diagnostic instrumentation (action branch, temporary).** On `CLOUD-4199-org-billed-mcp-policy-block`, in one commit titled `chore(diag): temporary Copilot CLI policy diagnostics - CLOUD-4199 (revert before merge)`:
    - In the agent step, before the `copilot -p` call, print the CLI's logging flags: `copilot --help | grep -i -E 'log|mcp'` (the help text holds no secrets). Then add `--log-dir "$COPILOT_HOME/logs"` and the debug log-level flag to the `copilot -p` call. Confirm the flag name from the help output in the first run; if it isn't accepted, re-run with the right one.
    - Add a step right after the agent step, `Diagnostics: Copilot CLI policy and MCP lines (temporary)`, with `if: always()` so it also runs when the job is cancelled. It runs `grep -h -i -E 'policy|registry|allowlist|mcp|auth|unauthori|forbidden|40[134]' "$RUNNER_TEMP/copilot-home/logs"/*`, pipes the output through a redaction `sed`, and keeps the first 400 lines with `head -400`. The `sed` replaces:
      - `Bearer [A-Za-z0-9._~+/=-]+` → `Bearer [REDACTED]`
@@ -171,18 +171,29 @@ Deliverable: redacted Copilot CLI debug evidence in a demo job log showing why `
 
      Nothing is added to the artifact (Q1 → Option 1).
    - `make quick` stays clean.
-2. **Push the action branch.** Don't open a PR yet.
-3. **Demo harness branch.** In demo-k9-cloudsec-agent, create branch `cloud-4199-harness` from `main`. In `dependency-triage.yml`:
+   - `2d2f6e1` on the action branch. `make quick` clean. The redaction filter was tested locally on all four token shapes. The log-level flag is detected from `copilot --help`.
+2. ✅ **Push the action branch.** Don't open a PR yet.
+3. ✅ **Demo harness branch.** In demo-k9-cloudsec-agent, create branch `cloud-4199-harness` from `main`. In `dependency-triage.yml`:
    - `uses: k9securityio/reachable-risk-triage-action@CLOUD-4199-org-billed-mcp-policy-block`
    - remove `test-command`, so runs are report-only and open no fix PRs
    - remove `teams-webhook-url`, so harness runs don't post to the channel
 
    This branch is temporary and never merged. Commit with `chore: CLOUD-4199 harness (do not merge)`, then push.
-4. **Dispatch:** `gh workflow run dependency-alert-triage -R k9securityio/demo-k9-cloudsec-agent --ref cloud-4199-harness -f runner=ubuntu-latest`. Poll as described above. The policy decision happens at CLI startup, so once the agent step has run for about 3 minutes, cancel the run (`gh run cancel`). The `if: always()` diagnostics step still runs.
-5. **Verify deliverable.** Pull the job log (`gh run view <id> --log`), then:
+   - demo `cloud-4199-harness` @ `64cfc42` (report-only, no Teams).
+4. ✅ **Dispatch:** `gh workflow run dependency-alert-triage -R k9securityio/demo-k9-cloudsec-agent --ref cloud-4199-harness -f runner=ubuntu-latest`. Poll as described above. The policy decision happens at CLI startup, so once the agent step has run for about 3 minutes, cancel the run (`gh run cancel`). The `if: always()` diagnostics step still runs.
+   - Dispatched 21:51:14 UTC; cancelled at 21:54:55 once the agent was past CLI startup. The `if: always()` diagnostics step ran after the cancel.
+5. ✅ **Verify deliverable.** Pull the job log (`gh run view <id> --log`), then:
    - confirm the diagnostics step printed the CLI's policy, registry and MCP decision lines;
    - run the leak check `grep -c -E 'gh[opsu]_[A-Za-z0-9]{20,}|github_pat_|eyJ[A-Za-z0-9_-]{10,}\.' <log>`, which must be `0`. If not, delete the run (`gh run delete`) right away and fix the filter.
-6. **Record the diagnosis here.** Write down the fetch URL and HTTP status (or the race timing), and which cause it is: (1) policy-fetch race with a fresh `COPILOT_HOME`, (2) the policy fetch rejected for the Actions token, or (3) an allowlist returned without `k9`.
+   - Leak check: 21 matches, all benign. One is the `sed` pattern echoed in the step's script; 20 are `Token: github_pat_***` from the agent's `gh auth status`, already masked by Actions. No real token values. Lesson: the leak-check regex should exclude `***`-masked values.
+6. ✅ **Record the diagnosis here.** Write down the fetch URL and HTTP status (or the race timing), and which cause it is: (1) policy-fetch race with a fresh `COPILOT_HOME`, (2) the policy fetch rejected for the Actions token, or (3) an allowlist returned without `k9`.
+   - **Diagnosis (2026-10-14), from harness run [38643409565](https://github.com/k9securityio/demo-k9-cloudsec-agent/actions/runs/38643409565): cause 2, the policy fetch is rejected for the Actions token.** Copilot CLI 1.0.80 debug log, redacted:
+     ```
+     [INFO]    [managedSettings] server policy: none for this account (404/empty) from https://github.com
+     [WARNING] Failed to fetch MCP registry policy: Failed to fetch MCP registry policy: 403 Forbidden. Non-default MCP servers will be blocked until the policy can be fetched.
+     [ERROR]   MCP server "k9" filtered: Could not verify server against any configured registry
+     ```
+     It isn't a startup race: the fetch completed (50 ms after the managed-settings lookup) and returned 403. The CLI then fails closed for every non-default server; the built-in `github-mcp-server` still loads. The model is fine (`claude-sonnet-5` served; CAPI models list shows `restricted_to: pro_plus, business, enterprise, max`).
 
 ### Phase B — Fix
 
