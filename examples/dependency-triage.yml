@@ -24,9 +24,21 @@ concurrency:
 
 jobs:
   triage:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest # Use the same runner image as the CI job that runs your tests.
     timeout-minutes: 120
     steps:
+      # Set up the same toolchain as the CI job that runs your tests, so
+      # test-command behaves as it does in CI. Check out first only if a
+      # setup step caches dependencies or reads repo files; the action's own
+      # checkout then checks out the same ref again, which is harmless.
+      # - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      #   with:
+      #     persist-credentials: false
+      # - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      #   with:
+      #     node-version-file: .nvmrc
+      #     cache: npm
+
       # The floating v1 major tag is the recommended default: fixes reach
       # every caller without per-repo edits. Policy-restricted orgs can pin
       # to a release SHA instead — see the README's versioning section.

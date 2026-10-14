@@ -36,14 +36,18 @@ Key design decisions to preserve:
 - **Two-token model.** `github-token` is a fine-grained PAT for `gh` (Dependabot alerts: read + Contents/PRs: write — the Actions `GITHUB_TOKEN` cannot read Dependabot alerts). Copilot auth is separate (`COPILOT_GITHUB_TOKEN` > `GH_TOKEN` precedence in the CLI is why the agent step pins `COPILOT_GITHUB_TOKEN` explicitly). The k9 token is minted fresh each run and handed between steps via a `$RUNNER_TEMP` file, deliberately not `GITHUB_ENV`.
 - **Failure is loud, silence is never success.** The agent exiting 0 is not trusted: the deliverables check fails the job if the report/summary are missing or off-schema; `pipefail` on the agent step keeps `tee` from masking a copilot failure; a missing summary makes `notify-teams.sh` post an explicit run-failed card. Zero open alerts is a normal clean run, not an error.
 - **The caller workflow owns what a composite action cannot declare** — `permissions` (including `copilot-requests: write`), `concurrency`, `timeout-minutes`. Changes there go in `examples/dependency-triage.yml` and the README, not `action.yml`.
+- **Supported runners follow GitHub's supported Ubuntu images** (README Prerequisites; CI matrix in `ci.yml`). Callers run triage like their CI job. Don't add `actions/setup-node` or other toolchain setup to `action.yml`: it changes `PATH` for the caller's `deps-command`/`test-command`. Copilot CLI is a native binary and doesn't depend on the image's Node version.
 - **The `agent` input is the seam** for future Claude Code / Opencode support; the guidance fetch, prompt, deliverables check, and notifications are agent-neutral. v1 fails fast on anything but `copilot`.
 
 ## Known false positives — do not "fix"
 
 - actionlint (≤1.7.10) and zizmor (≤1.29) flag `copilot-requests` as an unknown permission. The permission is real; the ignores in CI are deliberate. Re-check on linter upgrades.
+- actionlint (≤1.7.12) flags the `ubuntu-26.04` runner label as unknown. The label is real; the Makefile ignore is deliberate. Re-check on linter upgrades.
 - The example caller uses the floating `@v1` tag with `# zizmor: ignore[unpinned-uses]` on purpose; the action's own dependencies stay hash-pinned.
 - The global `npm install -g @github/copilot@<pinned>` carries `# zizmor: ignore[adhoc-packages]` as an accepted, version-bounded residual finding.
 
 ## Versioning
 
 Releases move a floating `@v1` major tag plus immutable `@v1.x.y` tags; breaking changes get a new major. Commit messages follow conventional-commit style (`feat:`, `fix:`, `docs:`, `feat!:` for breaking).
+
+A release that changes `action.yml`, `scripts/` or `prompts/` needs a green end-to-end triage run on each supported image (`ubuntu-24.04`, `ubuntu-26.04`) before `@v1` moves: dispatch demo-k9-cloudsec-agent's `dependency-alert-triage` workflow with `runner: <image>` and put the run URLs in the release notes. Docs-only releases are exempt.

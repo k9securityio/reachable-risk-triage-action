@@ -48,9 +48,21 @@ concurrency:
 
 jobs:
   triage:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest # Use the same runner image as the CI job that runs your tests.
     timeout-minutes: 120
     steps:
+      # Set up the same toolchain as the CI job that runs your tests, so
+      # test-command behaves as it does in CI. Check out first only if a
+      # setup step caches dependencies or reads repo files; the action's own
+      # checkout then checks out the same ref again, which is harmless.
+      # - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      #   with:
+      #     persist-credentials: false
+      # - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      #   with:
+      #     node-version-file: .nvmrc
+      #     cache: npm
+
       # The floating v1 major tag is the recommended default: fixes reach
       # every caller without per-repo edits. Policy-restricted orgs can pin
       # to a release SHA instead — see the README's versioning section.
@@ -80,6 +92,19 @@ inspects the installed dependency trees (site-packages, node_modules), not just 
 Fix PRs are opened only when the test command passes on the bumped branch; leave `test-command`
 unset to get triage reports without fix PRs.
 
+### Run triage like your CI
+
+Give the triage job the same `runs-on` and the same toolchain setup steps (for example
+`actions/setup-python` or `actions/setup-node`) as the CI job that runs your tests. Then
+`test-command` passes in triage whenever it passes in CI, and you don't change your build for
+the action. When a runner image change breaks your toolchain, your CI breaks too, and the fix
+you make there carries over to triage.
+
+Setup steps that cache dependencies (`cache: pip`, `cache: npm`) read your lockfiles, so add an
+`actions/checkout` step (with `persist-credentials: false`) before them. The action's own
+checkout then checks out the same ref again, which is harmless. Without caching, you don't need
+a checkout of your own. The example workflow shows where these steps go.
+
 Optional: commit a `.k9security/risk-context.yaml` describing your execution contexts (which
 paths run where, network exposure, data sensitivity). The agent binds each alert to the
 matching contexts when scoring; without the file, the agent scores without repository-specific
@@ -96,6 +121,10 @@ context.
    [Reachable Risk](https://www.k9security.io/lp/reachable-risk/) plan (`score_risk` access). Free to start, no credit card required.
 3. **Dependabot alerts enabled** on the repository.
 4. Optional: **a Microsoft Teams channel** where run outcomes should be announced.
+5. **A GitHub-hosted Ubuntu runner.** The action supports the Ubuntu images GitHub currently
+   supports — today `ubuntu-24.04` and `ubuntu-26.04` (`ubuntu-latest` resolves to one of them) —
+   and is tested on x64. Use the image your CI uses; see
+   [Run triage like your CI](#run-triage-like-your-ci).
 
 ## Secrets
 
@@ -175,6 +204,7 @@ The action's own dependencies are hash-pinned and zizmor-audited in CI on every 
 | Agent step fails immediately: `Authentication failed … ensure it has the 'Copilot Requests' permission` | A fine-grained PAT is being used for Copilot auth. Organization-owned fine-grained PATs cannot carry the account-level Copilot Requests permission (github/copilot-cli#223). Use the default org-billed path (no Copilot secret at all), or a *classic* token in `copilot-github-token`. |
 | Agent step fails immediately: `Access denied by policy settings` | The organization's Copilot CLI policy is disabled or the organization has no configured Copilot plan. Enable "Allow use of Copilot CLI billed to the organization", or use the `copilot-github-token` override. |
 | Run fails at "Check deliverables exist" | The agent ran but produced no report. Read `agent-run.log` in the run artifact: the failure evidence is there. The Teams card for a failed run says so explicitly. |
+| Fix PRs stopped opening, or `test-command` fails in triage but passes in CI | The triage job's runner image or toolchain setup differs from your CI job's, for example after GitHub moved `ubuntu-latest` to a new Ubuntu release. Read the failing test output in `agent-run.log`, then match `runs-on` and the setup steps to your CI job ([Run triage like your CI](#run-triage-like-your-ci)). |
 | Alert fetch fails / zero alerts unexpectedly | `GH_TRIAGE_TOKEN` is missing `Dependabot alerts: read` on the repository, or Dependabot alerts are disabled. A genuine zero-alert state is reported as a normal clean run, not an error. |
 | Agent stops mid-run: `You have exceeded your monthly quota` | The Copilot plan billing the run is out of monthly credits. On the `copilot-github-token` path this is that user's personal allowance; each triage run consumes credits in proportion to alert count. Wait for the monthly reset, use a different Copilot-licensed user's token, or prefer the org-billed default path. The run fails loudly: the missing report fails the deliverables check and Teams gets a failure card. |
 | actionlint/zizmor flag `copilot-requests` as an unknown permission | False positive: the permission is real but newer than the linters' permission lists (zizmor ≤1.29, actionlint ≤1.7.10). Do not remove the permission. |
