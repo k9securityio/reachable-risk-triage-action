@@ -138,4 +138,66 @@ Decision: Recommendation accepted, Option 1.
 
 ## Detailed implementation steps
 
-TODO: Make a detailed list of implementation steps to complete this task and replace this todo those steps.
+Deadline: Phases B and C finish before 2026-10-19, when the `ubuntu-latest` rollout starts. Phase A (action repo) and Phase B (demo repo) are independent and can run in parallel. Phase C waits for both, so `v1.0.2` ships any fix the 26.04 run turns up.
+
+### Phase A — Action repo: support policy, caller guidance, CI matrix (one PR)
+
+Deliverable: a merged PR where CI is green on `ubuntu-24.04` and `ubuntu-26.04`, and the README/example tell callers which images are supported and how to set up the triage job.
+
+1. Create branch `CLOUD-4198-ubuntu-26-runner-readiness` from `main`.
+2. **README Prerequisites (support policy).** Add item 5: *"A GitHub-hosted Ubuntu runner. The action supports the Ubuntu images GitHub currently supports — today `ubuntu-24.04` and `ubuntu-26.04` (`ubuntu-latest` resolves to one of them) — and is tested on x64. Use the image your CI uses; see [Run triage like your CI](#run-triage-like-your-ci)."*
+3. **README "mirror your CI job" guidance.** After the paragraph that starts "`deps-command` and `test-command` are your repository's own…", add a `### Run triage like your CI` subsection (anchor used by step 2). Content:
+   - Give the triage job the same `runs-on` and toolchain setup steps (e.g. `actions/setup-python`, `actions/setup-node`) as the CI job that runs your tests. Then `test-command` passes in triage whenever it passes in CI.
+   - When a runner image change breaks your toolchain, your CI breaks too, and the fix you make there carries over to triage.
+   - Setup steps that cache (`cache: pip`, `cache: npm`) read lockfiles, so add an `actions/checkout` (with `persist-credentials: false`) before them. The action's own checkout re-checks out the same ref, which is harmless. Without caching, no caller checkout is needed.
+4. **Example caller + README Quickstart YAML (kept identical).** The Quickstart embeds the same workflow as `examples/dependency-triage.yml`, so apply each edit to both:
+   - On `runs-on: ubuntu-latest`, add the comment `# Use the same runner image as the CI job that runs your tests.`
+   - Before the `uses: k9securityio/reachable-risk-triage-action@v1` step, add a commented block (Q5 → Option 1): a short comment ("Set up the same toolchain as your CI test job; check out first only if a setup step caches or reads repo files"), then a commented `actions/checkout` pinned to the SHA `action.yml` uses (`34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1`) with `persist-credentials: false`, then a commented `actions/setup-node` example hash-pinned to the current release (look up the v7.x tag's commit SHA with `gh api repos/actions/setup-node/git/ref/tags/<tag>`) with `node-version-file` and `cache: npm`. Real SHAs, so a caller who uncomments gets a pinned step that passes zizmor.
+   - Check: `diff <(sed -n '/^name: dependency-alert-triage/,/test-command/p' examples/dependency-triage.yml) <(sed -n '/^```yaml/,/^```/p' README.md | sed '1d;$d')` shows no differences in the workflow body. The example's leading file comment is expected to differ.
+5. **README Troubleshooting row** (generic). Symptom: "Fix PRs stopped opening, or `test-command` fails in triage but passes in CI". Cause and fix: "The triage job's runner image or toolchain setup differs from your CI job's, for example after GitHub moved `ubuntu-latest` to a new Ubuntu release. Read the failing test output in `agent-run.log`, then match `runs-on` and the setup steps to your CI job ([Run triage like your CI](#run-triage-like-your-ci))." Place it after the "Check deliverables exist" row.
+6. **CI matrix.** In `.github/workflows/ci.yml` `lint-and-audit`: add `strategy: { fail-fast: false, matrix: { os: [ubuntu-24.04, ubuntu-26.04] } }` and `runs-on: ${{ matrix.os }}`. Add a comment that the matrix mirrors the support policy (README Prerequisites), and that `ubuntu-latest` isn't listed because it's an alias for one of these. Don't change the install steps.
+7. **AGENTS.md updates** (Q6 → Option 1).
+   - Under `## Versioning`, add: *"A release that changes `action.yml`, `scripts/` or `prompts/` needs a green end-to-end triage run on each supported image (`ubuntu-24.04`, `ubuntu-26.04`) before `@v1` moves: dispatch demo-k9-cloudsec-agent's `dependency-alert-triage` workflow with `runner: <image>` and put the run URLs in the release notes. Docs-only releases are exempt."*
+   - Under Key design decisions, add: *"Supported runners follow GitHub's supported Ubuntu images (README Prerequisites; CI matrix in `ci.yml`). Callers run triage like their CI job. Don't add `actions/setup-node` or other toolchain setup to `action.yml`: it changes `PATH` for the caller's `deps-command`/`test-command`. Copilot CLI is a native binary and doesn't depend on the image's Node version."*
+8. **Verify locally:** `make quick` passes (shellcheck + actionlint on the matrix workflow + zizmor over `action.yml`, `ci.yml` and the edited example). Run the step 4 diff check. Skim the rendered README anchors (`#run-triage-like-your-ci`) on the branch's GitHub page.
+9. **Commits and PR.** Commit in two conventional commits: `ci: lint and audit on ubuntu-24.04 and ubuntu-26.04 - CLOUD-4198` (ci.yml) and `docs: runner support policy and run-triage-like-your-ci guidance - CLOUD-4198` (README, example, AGENTS.md). Push and open a PR.
+10. **Verify deliverable:** PR checks show `lint-and-audit (ubuntu-24.04)` and `lint-and-audit (ubuntu-26.04)` both green (`gh pr checks --watch`). This also confirms the `ubuntu-26.04` label is available, and that apt `shellcheck`, the actionlint download and `pipx install zizmor` (Python 3.14) work there. Merge (squash or merge per repo habit), then delete the branch.
+
+### Phase B — 26.04 test run in demo-k9-cloudsec-agent
+
+Deliverable: a successful `dependency-alert-triage` run on `ubuntu-26.04`, linked in CLOUD-4198, with every stage checked off.
+
+11. **Runner dispatch input (Q1 → Option 2).** In `../demo-k9-cloudsec-agent/.github/workflows/dependency-triage.yml`: give `workflow_dispatch` an input `runner` (`type: choice`, `options: [ubuntu-latest, ubuntu-24.04, ubuntu-26.04]`, `default: ubuntu-latest`, with a description noting it's for image test runs). Set `runs-on: ${{ inputs.runner || 'ubuntu-latest' }}`, with a comment that scheduled runs get no inputs, so they fall back to `ubuntu-latest`. Stage only that file; the demo repo has unrelated untracked files (`AGENTS.md`, `docs/reports/`). Commit to the demo's `main` in its style, `feat: runner dispatch input for runner-image test runs (CLOUD-4198)`, after running actionlint/zizmor on the file if available. Push.
+12. **Pre-flight (Q2 → Option 1).** Check remaining quota on the Copilot plan behind the demo's `COPILOT_GITHUB_TOKEN` (the token owner's GitHub settings → Copilot usage). If it's too low for a full run over about 30 alerts, stop and decide with the user rather than risk a misleading quota failure. Confirm no triage run is in progress (`gh run list -R k9securityio/demo-k9-cloudsec-agent -w dependency-alert-triage -L 3`); the shared `concurrency` group would queue it anyway.
+13. **Dispatch:** `gh workflow run dependency-alert-triage -R k9securityio/demo-k9-cloudsec-agent -f runner=ubuntu-26.04`, then `gh run watch` the run.
+14. **Verify deliverable**, from the run log, job summary and artifact:
+    - the job ran on Ubuntu 26.04 (the "Set up job" log shows the image `ubuntu-26.04` and its version)
+    - "Install Copilot CLI" succeeded, and the agent step ran
+    - `envsubst` resolved: the agent log shows the expanded repo name and run URL in the prompt, not literal `$GITHUB_REPOSITORY`
+    - token mint and guidance fetch succeeded (curl 8.18 / jq 1.8)
+    - "Check deliverables exist" passed (`k9-triage-summary/v2`)
+    - the job summary has the report; the artifact has the report, summary JSON and `agent-run.log`
+    - a Teams card arrived
+    - `deps-command` passed, and `test-command` (`make quick`) passed on any fix branch, or fix PRs opened / existing #56, #57 were left alone without errors
+15. **Handle failures.**
+    - In the action's code: create a fix on a new branch in this repo, release it as a `fix:` in Phase C, and re-dispatch on both images (Q6 rule).
+    - In the demo's own toolchain (Q3 → Option 1): pin the demo's `runs-on` default to `ubuntu-24.04` as a stopgap, create a separate CLOUD Jira issue to fix the demo's toolchain on 26.04 and unpin, and record it here.
+16. **Record:** comment on CLOUD-4198 with the run URL and stage results, and note the demo stays on `ubuntu-latest` (or the stopgap pin plus the follow-on issue key).
+
+### Phase C — Release `v1.0.2` (Q4 → Option 1)
+
+Deliverable: `v1.0.2` published with `@v1` moved to it, before 2026-10-19.
+
+17. **Pre-checks:** `main` is green on both matrix legs. Phase B passed. If Phase B produced an `action.yml`/`scripts/`/`prompts/` fix, the Q6 rule applies: both-image runs pass and their URLs go in the notes. Otherwise the release is docs/CI-only and exempt.
+18. **Tag and release.** `git tag v1.0.2 <main sha> && git push origin v1.0.2`. Then `gh release create v1.0.2 --title v1.0.2 --notes-file <notes>`, with notes in the v1.0.1 format:
+    - `## Docs`: runner support policy; "Run triage like your CI"; the troubleshooting row; the earlier unreleased README onboarding commits (`8d53e07`, `9a93da9`)
+    - `## CI`: the 24.04/26.04 matrix
+    - the 26.04 verification run URL
+    - the `Pin:` line with the full SHA
+19. **Move the major tag** (confirm with the user first, since it changes the version every `@v1` caller resolves): `git tag -f v1 v1.0.2 && git push -f origin v1`.
+20. **Verify deliverable:** `git ls-remote --tags origin v1 v1.0.2` shows both tags on the same commit, and `gh release view v1.0.2` shows the notes. Check the Marketplace listing shows the new README section; this check is manual.
+
+### Phase D — Close out
+
+21. Update CLOUD-4198 with the PR link, release link, 26.04 run URL and any follow-on issue. Then run `/task-resolve CLOUD-4198-ubuntu-26-runner-readiness`.
+22. After 2026-11-19 (optional reminder): confirm the demo's scheduled runs on the migrated `ubuntu-latest` are still green. That's ongoing 26.04 coverage, and a dispatch with `runner: ubuntu-24.04` covers 24.04 from then on.
