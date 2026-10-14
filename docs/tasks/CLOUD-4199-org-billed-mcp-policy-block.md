@@ -154,4 +154,87 @@ Decision: Recommendation accepted, Option 1.
 
 ## Detailed implementation steps
 
-TODO: Make a detailed list of implementation steps to complete this task and replace this todo those steps.
+Planning note: the Q1/Q2 decision to "mask the minted k9 token" is already in place. The "Mint k9 MCP token" step runs `echo "::add-mask::$token"`, so no extra hardening ships, and per Q2 nothing from the diagnostics ships at all.
+
+How to wait on runs: macOS has no `timeout`, and `gh run watch` / `gh pr checks --watch` return straight away without a terminal. Poll with a `SECONDS`-bounded loop: `end=$((SECONDS+570)); while [ $SECONDS -lt $end ]; do …; sleep 30; done`, run in the background and re-armed until the run completes. Check the real clock before reporting any elapsed time.
+
+### Phase A — Diagnose the MCP policy block
+
+Deliverable: redacted Copilot CLI debug evidence in a demo job log showing why `k9` is blocked, recorded in this doc, with no secret patterns in the log.
+
+1. **Diagnostic instrumentation (action branch, temporary).** On `CLOUD-4199-org-billed-mcp-policy-block`, in one commit titled `chore(diag): temporary Copilot CLI policy diagnostics - CLOUD-4199 (revert before merge)`:
+   - In the agent step, before the `copilot -p` call, print the CLI's logging flags: `copilot --help | grep -i -E 'log|mcp'` (the help text holds no secrets). Then add `--log-dir "$COPILOT_HOME/logs"` and the debug log-level flag to the `copilot -p` call. Confirm the flag name from the help output in the first run; if it isn't accepted, re-run with the right one.
+   - Add a step right after the agent step, `Diagnostics: Copilot CLI policy and MCP lines (temporary)`, with `if: always()` so it also runs when the job is cancelled. It runs `grep -h -i -E 'policy|registry|allowlist|mcp|auth|unauthori|forbidden|40[134]' "$RUNNER_TEMP/copilot-home/logs"/*`, pipes the output through a redaction `sed`, and keeps the first 400 lines with `head -400`. The `sed` replaces:
+     - `Bearer [A-Za-z0-9._~+/=-]+` → `Bearer [REDACTED]`
+     - `gh[opsu]_[A-Za-z0-9]+` and `github_pat_[A-Za-z0-9_]+` → `[REDACTED]`
+     - JWT-shaped `eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+` → `[JWT]`
+
+     Nothing is added to the artifact (Q1 → Option 1).
+   - `make quick` stays clean.
+2. **Push the action branch.** Don't open a PR yet.
+3. **Demo harness branch.** In demo-k9-cloudsec-agent, create branch `cloud-4199-harness` from `main`. In `dependency-triage.yml`:
+   - `uses: k9securityio/reachable-risk-triage-action@CLOUD-4199-org-billed-mcp-policy-block`
+   - remove `test-command`, so runs are report-only and open no fix PRs
+   - remove `teams-webhook-url`, so harness runs don't post to the channel
+
+   This branch is temporary and never merged. Commit with `chore: CLOUD-4199 harness (do not merge)`, then push.
+4. **Dispatch:** `gh workflow run dependency-alert-triage -R k9securityio/demo-k9-cloudsec-agent --ref cloud-4199-harness -f runner=ubuntu-latest`. Poll as described above. The policy decision happens at CLI startup, so once the agent step has run for about 3 minutes, cancel the run (`gh run cancel`). The `if: always()` diagnostics step still runs.
+5. **Verify deliverable.** Pull the job log (`gh run view <id> --log`), then:
+   - confirm the diagnostics step printed the CLI's policy, registry and MCP decision lines;
+   - run the leak check `grep -c -E 'gh[opsu]_[A-Za-z0-9]{20,}|github_pat_|eyJ[A-Za-z0-9_-]{10,}\.' <log>`, which must be `0`. If not, delete the run (`gh run delete`) right away and fix the filter.
+6. **Record the diagnosis here.** Write down the fetch URL and HTTP status (or the race timing), and which cause it is: (1) policy-fetch race with a fresh `COPILOT_HOME`, (2) the policy fetch rejected for the Actions token, or (3) an allowlist returned without `k9`.
+
+### Phase B — Fix
+
+Deliverable: a harness run on the fixed action branch reaches the k9 MCP server and the triage completes report-only, with the deliverables check green.
+
+7. **Apply the fix that matches the diagnosis,** trying each in order and re-running the harness (step 4, but letting the run finish) after each change:
+   - a. **Copilot CLI 1.0.98** (Q5 → Option 1). In "Install GitHub Copilot CLI", change the pin to `@github/copilot@1.0.98`, keeping the `zizmor: ignore[adhoc-packages]` comment. Update the pin comment ("version-pinned to the release the verified runs used"). Check that the 1.0.98 flags still work (`--allow-tool`, `--no-ask-user`, and `--model` against the help output).
+   - b. **If it's still a race** (cause 1): a supported mitigation in the agent step, such as passing the server with `--additional-mcp-config @"$COPILOT_HOME/mcp-config.json"` instead of relying on the config file in `COPILOT_HOME`, if the diagnosis shows that path is evaluated after policy resolves. Re-run.
+   - c. **To confirm a cause only** (Q4 → Option 1): one harness run with `COPILOT_EXP_COPILOT_CLI_MCP_ALLOWLIST=false` set on the agent step, in a separate commit that gets reverted straight away. Never merged.
+   - d. **If the Actions token is rejected and nothing in our control fixes it** (Q7 → Option 1):
+     - file an upstream issue at github/copilot-cli with the redacted evidence;
+     - document the limitation in the README (Prerequisites note and troubleshooting row), naming `copilot-github-token` as the working path for people who already hold an individual plan;
+     - open a separate CLOUD Jira issue to prioritise Claude Code support behind the `agent` input.
+8. **Remove the diagnostics.** `git revert` the `chore(diag)` commit (and any flag-test commit), leaving only the fix. Run `make quick`.
+9. **Verify deliverable.** A harness run on the cleaned branch completes on `ubuntu-latest` without cancelling:
+   - the agent log has no `blocked by policy` line, and shows k9 tool calls (e.g. `score_risk`);
+   - "Check deliverables exist" passes with `k9-triage-summary/v2`;
+   - the job summary has the report.
+
+   Record the run URL. If step 7d applied instead, the deliverable is the upstream issue, the README limitation and the new Jira issue.
+
+### Phase C — Docs, PR, and verification on both images
+
+Deliverable: the fix merged to `main`, with green end-to-end demo triage runs on `ubuntu-24.04` and `ubuntu-26.04` using the merged commit (full behaviour: test-command, fix PRs, Teams).
+
+10. **README.** Add a troubleshooting row for `1 MCP server was blocked by policy: 'k9'` with the confirmed cause and fix. If the fix is the CLI upgrade, say the action now pins a CLI version that resolves it. Update Prerequisites if the org-billed path needs anything new. Keep the Quickstart/example YAML identical to each other (the CLOUD-4198 diff check), and run `make quick`.
+11. **PR.** Push, then open a PR with `fix: <confirmed fix> - CLOUD-4199`, stating the root cause, the CLI version change and its notable changes (e.g. the 1.0.92 sandboxed-shell `GITHUB_TOKEN` change), the harness evidence, and that diagnostics were removed. Poll until both `lint-and-audit` legs are green, then rebase-merge and delete the branch.
+12. **Pre-release verification on both images** (AGENTS.md rule; also completes CLOUD-4198 step 14):
+    - On the demo's `main`, temporarily pin `uses: k9securityio/reachable-risk-triage-action@<merged main SHA> # pre-release verification, CLOUD-4199`. Use a SHA on the demo's `main`, not a branch, so fix PRs branch from `main` and carry only the dependency bump.
+    - Dispatch `runner: ubuntu-24.04` and `runner: ubuntu-26.04`, one after the other (the shared concurrency group queues them).
+13. **Verify deliverable.** For both runs:
+    - the job completes green;
+    - "Check deliverables exist" passes;
+    - fix PRs open or are skipped exactly as the report says (existing #56/#57 are handled without duplicates);
+    - the Teams card arrives;
+    - the image line in "Set up job" matches the requested runner.
+
+    Record both run URLs for the release notes.
+
+### Phase D — Release `v1.0.2` and close out (Q6 → Option 1)
+
+Deliverable: `v1.0.2` published with `@v1` moved, the demo back on `@v1`, and both Jira issues updated.
+
+14. **Get your go-ahead to release.** You held `v1.0.2`, so tagging waits for your explicit OK.
+15. **Tag and release.** Tag `v1.0.2` on `main`. The release notes cover:
+    - CLOUD-4198: runner support policy, "Run triage like your CI", troubleshooting rows, the CI matrix, the Copilot plan wording and the AGENTS.md rules;
+    - CLOUD-4199: root cause, fix, and the CLI 1.0.80 → 1.0.98 notable changes;
+    - both run URLs from step 13, and the `Pin:` line with the full SHA.
+16. **Move `@v1`,** again only after you confirm: `git tag -f v1 v1.0.2 && git push -f origin v1`. Verify with `git ls-remote --tags origin v1 v1.0.2` (same commit).
+17. **Demo cleanup.** Revert the demo's `uses:` to `@v1`. Delete the `cloud-4199-harness` branch, and close any harness-only artifacts.
+18. **Close out.**
+    - Update the CLOUD-4198 task doc (steps 14, 17–21) and this doc.
+    - Comment on CLOUD-4198 and CLOUD-4199 with the release link and run URLs.
+    - Link the upstream issue if one was filed.
+    - Run `/task-resolve` for both tasks.
