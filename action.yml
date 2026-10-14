@@ -195,10 +195,19 @@ runs:
         jq -n --arg url "$K9_MCP_URL" --arg auth "Bearer $(cat "$RUNNER_TEMP/k9-mcp-token")" \
           '{mcpServers: {k9: {type: "http", url: $url, headers: {Authorization: $auth}}}}' \
           > "$COPILOT_HOME/mcp-config.json"
+        # --allow-all-tools: since 1.0.9x, Assisted Permissions judges each
+        # shell command and, with no one to approve, denies some (e.g.
+        # `python -m pytest`, the caller's own test-command) despite
+        # --allow-tool 'shell'. The agent already has unrestricted shell, so
+        # this restores the configured commands without widening access.
+        # --excluded-tools task: task-tool subagents ignore --model and pick
+        # the strongest model the org allows (seen: Opus), so all work stays
+        # on the caller's model and cost.
         copilot -p "$(envsubst '$GITHUB_REPOSITORY $GITHUB_SERVER_URL $GITHUB_RUN_ID $K9_DEPS_COMMAND $K9_TEST_COMMAND' \
             < "$GITHUB_ACTION_PATH/prompts/dependency-triage-prompt.md")" \
           --model "$MODEL" \
-          --allow-tool 'k9' --allow-tool 'shell' --allow-tool 'write' \
+          --allow-all-tools \
+          --excluded-tools task \
           --no-ask-user 2>&1 | tee out/agent-run.log
 
     - name: Check deliverables exist
