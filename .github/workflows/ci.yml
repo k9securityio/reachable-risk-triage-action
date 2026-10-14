@@ -15,7 +15,13 @@ permissions:
 
 jobs:
   lint-and-audit:
-    runs-on: ubuntu-latest
+    # One leg per supported runner image (README → Prerequisites). ubuntu-latest
+    # is not listed: it is an alias for one of these.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-26.04]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1

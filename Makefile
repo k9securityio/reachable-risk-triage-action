@@ -25,10 +25,13 @@ run-shellcheck:
 # 'copilot-requests' is a real Actions permission that actionlint's permission
 # list does not know yet (<=1.7.10) — same false-positive class as zizmor
 # <=1.29's 'unknown permission' warn. Re-check the ignore on upgrades.
+# 'ubuntu-26.04' is a real GitHub-hosted runner label (CI matrix leg) that
+# actionlint's runner-label list does not know yet (<=1.7.12).
 .PHONY: run-actionlint
 run-actionlint:
 	@echo running actionlint
 	actionlint -ignore 'unknown permission scope "copilot-requests"' \
+		-ignore 'label "ubuntu-26.04" is unknown' \
 		.github/workflows/*.yml examples/*.yml
 
 
