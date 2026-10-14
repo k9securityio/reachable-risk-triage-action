@@ -171,7 +171,7 @@ runs:
       # Version-pinned to the release the verified runs used; a global CLI
       # install in CI is inherent to the design and the pin bounds it
       # (accepted residual finding).
-      run: npm install -g @github/copilot@1.0.80 # zizmor: ignore[adhoc-packages]
+      run: npm install -g @github/copilot@1.0.98 # zizmor: ignore[adhoc-packages]
 
     - name: Run triage agent (GitHub Copilot CLI)
       id: agent
