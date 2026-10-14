@@ -74,7 +74,7 @@ Options:
 
 Recommendation: Option 1. Run it once before 2026-10-19, and check the Copilot plan's remaining quota first, so a quota failure isn't misread as a 26.04 failure.
 
-Decision: TBD
+Decision: Recommendation accepted, Option 1.
 
 ### Q3. Which runner should demo-k9-cloudsec-agent's scheduled triage use, given it has no CI job to mirror?
 
@@ -89,7 +89,7 @@ Options:
 
 Recommendation: Option 1. The demo keeps exercising the same default as the example caller, and a stopgap pin keeps weekly triage working while the demo's toolchain is fixed outside this task.
 
-Decision: TBD
+Decision: Recommendation accepted, Option 1.
 
 ### Q4. Should the README and example changes ship in a docs-only `v1.0.2` release?
 
@@ -104,7 +104,7 @@ Options:
 
 Recommendation: Option 1. The guidance matters most during the rollout window, and a docs-only release is cheap and safe.
 
-Decision: TBD
+Decision: Recommendation accepted, Option 1.
 
 ### Q5. How should the example show callers where their CI setup steps go, given that setup actions with caching need the repository checked out first?
 
@@ -119,7 +119,7 @@ Options:
 
 Recommendation: Option 1. It costs nothing in `action.yml`, keeps the copied steps identical to the caller's CI, and the double checkout is harmless. The example's caller checkout also uses `persist-credentials: false`, so zizmor stays clean.
 
-Decision: TBD
+Decision: Recommendation accepted, Option 1.
 
 ### Q6. Should supporting two images add a per-release test requirement?
 
@@ -134,7 +134,7 @@ Options:
 
 Recommendation: Option 1. It's the concrete cost of the two-image support policy: two dispatches per runtime release, each billed to the Copilot quota.
 
-Decision: TBD
+Decision: Recommendation accepted, Option 1.
 
 ## Detailed implementation steps
 
