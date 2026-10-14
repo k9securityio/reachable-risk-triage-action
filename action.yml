@@ -195,34 +195,11 @@ runs:
         jq -n --arg url "$K9_MCP_URL" --arg auth "Bearer $(cat "$RUNNER_TEMP/k9-mcp-token")" \
           '{mcpServers: {k9: {type: "http", url: $url, headers: {Authorization: $auth}}}}' \
           > "$COPILOT_HOME/mcp-config.json"
-        # TEMPORARY CLOUD-4199 diagnostics: debug logs to $COPILOT_HOME/logs.
-        echo "::group::copilot --help (log/mcp flags)"
-        copilot --help | grep -i -E 'log|mcp' || true
-        echo "::endgroup::"
-        diag_flags=(--log-dir "$COPILOT_HOME/logs")
-        if copilot --help | grep -q -- '--log-level'; then diag_flags+=(--log-level debug); fi
         copilot -p "$(envsubst '$GITHUB_REPOSITORY $GITHUB_SERVER_URL $GITHUB_RUN_ID $K9_DEPS_COMMAND $K9_TEST_COMMAND' \
             < "$GITHUB_ACTION_PATH/prompts/dependency-triage-prompt.md")" \
           --model "$MODEL" \
           --allow-tool 'k9' --allow-tool 'shell' --allow-tool 'write' \
-          "${diag_flags[@]}" \
           --no-ask-user 2>&1 | tee out/agent-run.log
-
-    - name: "Diagnostics: Copilot CLI policy and MCP lines (temporary, CLOUD-4199)"
-      # Redacted policy/MCP/auth lines to the job log only; nothing is
-      # uploaded. Runs on cancel too, so a run can be stopped after startup.
-      if: always()
-      shell: bash
-      run: |
-        logs="$RUNNER_TEMP/copilot-home/logs"
-        ls -la "$logs" 2>/dev/null || { echo "no copilot logs at $logs"; exit 0; }
-        grep -h -i -E 'policy|registry|allowlist|mcp|auth|unauthori|forbidden|40[134]' "$logs"/* 2>/dev/null \
-          | sed -E \
-              -e 's/Bearer [A-Za-z0-9._~+\/=-]+/Bearer [REDACTED]/g' \
-              -e 's/gh[opsu]_[A-Za-z0-9]+/[REDACTED]/g' \
-              -e 's/github_pat_[A-Za-z0-9_]+/[REDACTED]/g' \
-              -e 's/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/[JWT]/g' \
-          | head -400 || true
 
     - name: Check deliverables exist
       # The agent exiting 0 is not proof it produced the report; fail loudly
