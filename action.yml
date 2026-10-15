@@ -195,20 +195,46 @@ runs:
         jq -n --arg url "$K9_MCP_URL" --arg auth "Bearer $(cat "$RUNNER_TEMP/k9-mcp-token")" \
           '{mcpServers: {k9: {type: "http", url: $url, headers: {Authorization: $auth}}}}' \
           > "$COPILOT_HOME/mcp-config.json"
-        # --allow-all-tools: since 1.0.9x, Assisted Permissions judges each
-        # shell command and, with no one to approve, denies some (e.g.
-        # `python -m pytest`, the caller's own test-command) despite
-        # --allow-tool 'shell'. The agent already has unrestricted shell, so
-        # this restores the configured commands without widening access.
-        # --excluded-tools task: task-tool subagents ignore --model and pick
-        # the strongest model the org allows (seen: Opus), so all work stays
-        # on the caller's model and cost.
+        # Permissions: the ephemeral runner is the containment boundary, not
+        # the tool list. Since 1.0.9x, Assisted Permissions judges each shell
+        # command and, with no one to approve, denies some (e.g.
+        # `python -m pytest`, the caller's own test-command) even under
+        # --allow-tool 'shell' or --allow-all-tools; --allow-all-paths also
+        # lets the agent read installed dependency trees outside the
+        # workspace (reachability). URLs stay restricted (no
+        # --allow-all-urls): the agent holds tokens, so arbitrary fetches stay
+        # off. --excluded-tools task: task-tool subagents ignore --model and
+        # pick the strongest model the org allows (seen: Opus), and work
+        # without the RR guidance in context.
         copilot -p "$(envsubst '$GITHUB_REPOSITORY $GITHUB_SERVER_URL $GITHUB_RUN_ID $K9_DEPS_COMMAND $K9_TEST_COMMAND' \
             < "$GITHUB_ACTION_PATH/prompts/dependency-triage-prompt.md")" \
           --model "$MODEL" \
-          --allow-all-tools \
+          --allow-all-tools --allow-all-paths \
           --excluded-tools task \
           --no-ask-user 2>&1 | tee out/agent-run.log
+
+    - name: Report denied agent commands
+      # A denied command makes the agent silently improvise (a different test
+      # invocation, coarser reachability), so surface every denial loudly.
+      if: always()
+      shell: bash
+      run: |
+        [ -f out/agent-run.log ] || exit 0
+        denied=$(grep -c -E 'Denied, no one to approve|Permission denied and could not request permission' out/agent-run.log || true)
+        echo "denied agent commands: $denied"
+        if [ "$denied" -gt 0 ]; then
+          echo "::warning::Copilot CLI denied $denied agent command(s); see the job summary"
+          {
+            echo "## Denied agent commands ($denied)"
+            echo
+            echo "The agent worked around these; review them before trusting reachability or test results."
+            echo
+            echo '```'
+            grep -B12 -E 'Denied, no one to approve|Permission denied and could not request permission' out/agent-run.log \
+              | grep -E '^ *✗ |^ *│ ' | head -60
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+        fi
 
     - name: Check deliverables exist
       # The agent exiting 0 is not proof it produced the report; fail loudly
