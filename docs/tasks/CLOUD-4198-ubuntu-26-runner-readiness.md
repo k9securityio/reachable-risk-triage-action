@@ -180,7 +180,7 @@ Deliverable: a successful `dependency-alert-triage` run on `ubuntu-26.04`, linke
     - Coverage gap, on record: with no individual Copilot plan available to us, the `copilot-github-token` path is untested. The action still supports it, and the README/`action.yml` wording now describes when it applies (existing individual Pro/Pro+ holders). The both-images release rule (step 7) covers the org-billed path only until someone can lend an individual-plan token.
     - This change also touches the `copilot-github-token` input description in `action.yml` (text only, no runtime change). The step 7 rule then asks for runs on both images before `@v1` moves, so Phase B dispatches `ubuntu-24.04` as well as `ubuntu-26.04`.
 13. ✅ **Dispatch:** `gh workflow run dependency-alert-triage -R k9securityio/demo-k9-cloudsec-agent -f runner=ubuntu-26.04`, then `gh run watch` the run.
-14. 🚧 **Verify deliverable**, from the run log, job summary and artifact:
+14. ✅ **Verify deliverable**, from the run log, job summary and artifact:
     - Verified on `ubuntu-26.04` (image 20261012.163.1) across runs [38636991959](https://github.com/k9securityio/demo-k9-cloudsec-agent/actions/runs/38636991959), [38637500302](https://github.com/k9securityio/demo-k9-cloudsec-agent/actions/runs/38637500302) and [38639343630](https://github.com/k9securityio/demo-k9-cloudsec-agent/actions/runs/38639343630) (cancelled): checkout; demo `deps-command` on Python 3.14 / Node 24 (43 s); k9 token mint; guidance fetch of all 3 resources (curl 8.18 / jq 1.8); Copilot CLI 1.0.80 install; `envsubst` present (no `command not found`; the prompt reached the agent); model `claude-sonnet-5` accepted after policy propagation; artifact upload; Teams card (HTTP 202).
     - Not verified: the triage itself (deliverables check, fix PRs). It's blocked by the k9 MCP server being `blocked by policy` on the org-billed path (CLOUD-4199). The 24.04 dispatch is also deferred to CLOUD-4199, since it would hit the same block.
     - the job ran on Ubuntu 26.04 (the "Set up job" log shows the image `ubuntu-26.04` and its version)
@@ -191,6 +191,7 @@ Deliverable: a successful `dependency-alert-triage` run on `ubuntu-26.04`, linke
     - the job summary has the report; the artifact has the report, summary JSON and `agent-run.log`
     - a Teams card arrived
     - `deps-command` passed, and `test-command` (`make quick`) passed on any fix branch, or fix PRs opened / existing #56, #57 were left alone without errors
+    - Completed under CLOUD-4199 on rr-triage-fixture with the final `action.yml`: ubuntu-24.04 https://github.com/k9securityio/rr-triage-fixture/actions/runs/38659441800 and ubuntu-26.04 https://github.com/k9securityio/rr-triage-fixture/actions/runs/38660421501, both full end-to-end runs (0 denied commands, fix PRs after passing tests, Teams OK).
 15. ✅ **Handle failures.**
     - Split out as **CLOUD-4199**: on the org-billed path, Copilot CLI 1.0.80 reports `1 MCP server was blocked by policy: 'k9'`, so the agent can't reach the k9 MCP server. This is an auth/policy issue, not a runner image issue (likely a policy-fetch race or failure with a fresh `COPILOT_HOME`; copilot-cli #2567/#4378/#4957). The demo's toolchain didn't break on 26.04, so the Q3 stopgap pin isn't needed.
     - In the action's code: create a fix on a new branch in this repo, release it as a `fix:` in Phase C, and re-dispatch on both images (Q6 rule).
@@ -202,17 +203,18 @@ Deliverable: a successful `dependency-alert-triage` run on `ubuntu-26.04`, linke
 
 Deliverable: `v1.0.2` published with `@v1` moved to it, before 2026-10-19.
 
-17. 🚧 **Pre-checks:** `main` is green on both matrix legs. Phase B passed. If Phase B produced an `action.yml`/`scripts/`/`prompts/` fix, the Q6 rule applies: both-image runs pass and their URLs go in the notes. Otherwise the release is docs/CI-only and exempt.
+17. ✅ **Pre-checks:** `main` is green on both matrix legs. Phase B passed. If Phase B produced an `action.yml`/`scripts/`/`prompts/` fix, the Q6 rule applies: both-image runs pass and their URLs go in the notes. Otherwise the release is docs/CI-only and exempt.
     - 2026-10-14: `main` is green on both legs once PR #1 merges. The release is held by the user: don't tag `v1.0.2` yet. When it ships, the notes must say the full triage run on 26.04 waits on CLOUD-4199, list what was verified (step 14), and note that the `action.yml` change is description text only.
-18. **Tag and release.** `git tag v1.0.2 <main sha> && git push origin v1.0.2`. Then `gh release create v1.0.2 --title v1.0.2 --notes-file <notes>`, with notes in the v1.0.1 format:
+18. ✅ **Tag and release.** `git tag v1.0.2 <main sha> && git push origin v1.0.2`. Then `gh release create v1.0.2 --title v1.0.2 --notes-file <notes>`, with notes in the v1.0.1 format:
     - `## Docs`: runner support policy; "Run triage like your CI"; the troubleshooting row; the earlier unreleased README onboarding commits (`8d53e07`, `9a93da9`)
     - `## CI`: the 24.04/26.04 matrix
     - the 26.04 verification run URL
     - the `Pin:` line with the full SHA
-19. **Move the major tag** (confirm with the user first, since it changes the version every `@v1` caller resolves): `git tag -f v1 v1.0.2 && git push -f origin v1`.
-20. **Verify deliverable:** `git ls-remote --tags origin v1 v1.0.2` shows both tags on the same commit, and `gh release view v1.0.2` shows the notes. Check the Marketplace listing shows the new README section; this check is manual.
+    - Shipped as `v1.0.2` together with CLOUD-4199 (CLOUD-4199 Q6): https://github.com/k9securityio/reachable-risk-triage-action/releases/tag/v1.0.2. `v1` → `d40f4e0`.
+19. ✅ **Move the major tag** (confirm with the user first, since it changes the version every `@v1` caller resolves): `git tag -f v1 v1.0.2 && git push -f origin v1`.
+20. ✅ **Verify deliverable:** `git ls-remote --tags origin v1 v1.0.2` shows both tags on the same commit, and `gh release view v1.0.2` shows the notes. Check the Marketplace listing shows the new README section; this check is manual.
 
 ### Phase D — Close out
 
-21. Update CLOUD-4198 with the PR link, release link, 26.04 run URL and any follow-on issue. Then run `/task-resolve CLOUD-4198-ubuntu-26-runner-readiness`.
+21. ✅ Update CLOUD-4198 with the PR link, release link, 26.04 run URL and any follow-on issue. Then run `/task-resolve CLOUD-4198-ubuntu-26-runner-readiness`.
 22. After 2026-11-19 (optional reminder): confirm the demo's scheduled runs on the migrated `ubuntu-latest` are still green. That's ongoing 26.04 coverage, and a dispatch with `runner: ubuntu-24.04` covers 24.04 from then on.

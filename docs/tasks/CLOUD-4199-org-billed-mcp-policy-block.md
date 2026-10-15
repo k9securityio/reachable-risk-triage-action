@@ -254,15 +254,20 @@ Deliverable: the fix merged to `main`, with green end-to-end demo triage runs on
 
 Deliverable: `v1.0.2` published with `@v1` moved, the demo back on `@v1`, and both Jira issues updated.
 
-14. **Get your go-ahead to release.** You held `v1.0.2`, so tagging waits for your explicit OK.
-15. **Tag and release.** Tag `v1.0.2` on `main`. The release notes cover:
+14. ✅ **Get your go-ahead to release.** You held `v1.0.2`, so tagging waits for your explicit OK.
+    - User approved ("Proceed with phase D", then "Publish" after reviewing the notes).
+15. ✅ **Tag and release.** Tag `v1.0.2` on `main`. The release notes cover:
     - CLOUD-4198: runner support policy, "Run triage like your CI", troubleshooting rows, the CI matrix, the Copilot plan wording and the AGENTS.md rules;
     - CLOUD-4199: root cause, fix, and the CLI 1.0.80 → 1.0.98 notable changes;
     - both run URLs from step 13, and the `Pin:` line with the full SHA.
-16. **Move `@v1`,** again only after you confirm: `git tag -f v1 v1.0.2 && git push -f origin v1`. Verify with `git ls-remote --tags origin v1 v1.0.2` (same commit).
-17. **Demo cleanup.** Revert the demo's `uses:` to `@v1`. Delete the `cloud-4199-harness` branch, and close any harness-only artifacts.
-18. **Close out.**
+    - Annotated tag `v1.0.2` on `d40f4e0` (after PR #4 corrected the individual-plan wording). Release: https://github.com/k9securityio/reachable-risk-triage-action/releases/tag/v1.0.2. Notes reviewed by the user before publishing.
+16. ✅ **Move `@v1`,** again only after you confirm: `git tag -f v1 v1.0.2 && git push -f origin v1`. Verify with `git ls-remote --tags origin v1 v1.0.2` (same commit).
+    - `v1` and `v1.0.2` both resolve to `d40f4e0` (verified with `git ls-remote`).
+17. ✅ **Demo cleanup.** Revert the demo's `uses:` to `@v1`. Delete the `cloud-4199-harness` branch, and close any harness-only artifacts.
+    - Demo back on `@v1` (`6c3df2f`), fixture back on `@v1` (`d1bf848`; it keeps the `runner` input and the org-billed path). Demo harness branch `cloud-4199-harness` deleted.
+18. 🚧 **Close out.**
     - Update the CLOUD-4198 task doc (steps 14, 17–21) and this doc.
     - Comment on CLOUD-4198 and CLOUD-4199 with the release link and run URLs.
     - Link the upstream issue if one was filed.
     - Run `/task-resolve` for both tasks.
+    - Task docs updated (this commit); Jira comments posted on CLOUD-4198/CLOUD-4199. No upstream issue filed: 1.0.98 fixed the 403. `/task-resolve` pending.
