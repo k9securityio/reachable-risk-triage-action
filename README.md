@@ -119,10 +119,8 @@ context.
      to the organization, not to any seat holder. In Organization Settings → Copilot → Policies,
      confirm "Allow use of Copilot CLI billed to the organization" is enabled (it is on by
      default), and that MCP servers are allowed: the agent calls the k9 MCP server.
-   - **An existing individual Copilot Pro or Pro+ plan**, used through the
-     [`COPILOT_GITHUB_TOKEN`](#secrets) secret. GitHub paused new sign-ups for individual plans in
-     April 2026 ([announcement](https://github.com/orgs/community/discussions/192963)), so this
-     path only works for people who already have one.
+   - **An individual Copilot Pro, Pro+ or Max plan**, used through the
+     [`COPILOT_GITHUB_TOKEN`](#secrets) secret. Usage is billed to that user's plan.
 2. **A k9 Security account** with the
    [Reachable Risk](https://www.k9security.io/lp/reachable-risk/) plan (`score_risk` access). Free to start, no credit card required.
 3. **Dependabot alerts enabled** on the repository.
@@ -141,7 +139,7 @@ Repository (or organization) Actions secrets:
 | `K9_CLIENT_ID` / `K9_CLIENT_SECRET` | A k9 Service Client (M2M): in the k9 app, My Account → Service Clients (M2M) → Create, then copy the id and secret (the secret is shown once). The action mints a fresh short-lived token from these on every run; there is nothing to rotate on a schedule and no token that expires in a drawer. |
 | `GH_TRIAGE_TOKEN` | A fine-grained PAT (organization-owned is fine) with repository permissions `Dependabot alerts: read`, `Contents: write`, and `Pull requests: write` on the repository. Used only by `gh` to read alerts, push fix branches, and open fix PRs. It needs no Copilot permission. The Actions-issued `GITHUB_TOKEN` cannot read Dependabot alerts, which is why a PAT is required. |
 | `TEAMS_WEBHOOK_URL` (optional) | See [Create the Teams webhook](#create-the-teams-webhook). When unset, the run reports to the job summary and artifact only. |
-| `COPILOT_GITHUB_TOKEN` (optional) | For organizations without a Copilot Business or Enterprise plan, when a user already holds an individual Copilot Pro or Pro+ plan: a classic token of that user, passed via the `copilot-github-token` input. When set, it overrides the org-billed path and bills that user's plan. GitHub has paused new individual-plan sign-ups, so if that plan ends it can't currently be bought again; the org-billed path is the durable option. Do not use an org-owned fine-grained PAT: it cannot carry the account-level Copilot Requests permission ([github/copilot-cli#223](https://github.com/github/copilot-cli/issues/223)). |
+| `COPILOT_GITHUB_TOKEN` (optional) | For organizations without a Copilot Business or Enterprise plan: a classic token of a user who holds an individual Copilot Pro, Pro+ or Max plan, passed via the `copilot-github-token` input. When set, it overrides the org-billed path and bills that user's plan. The org-billed path is recommended: usage is billed to the organization rather than to one person's plan. Do not use an org-owned fine-grained PAT: it cannot carry the account-level Copilot Requests permission ([github/copilot-cli#223](https://github.com/github/copilot-cli/issues/223)). |
 
 ## Inputs
 
