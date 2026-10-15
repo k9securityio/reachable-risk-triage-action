@@ -25,6 +25,8 @@ Coverage today (corrected 2026-10-14): the demo-k9-cloudsec-agent scheduled runs
 
 Out of scope: changing the action's scope guarantees; non-Ubuntu or self-hosted runners; arm64 runners (Copilot ships `linux-arm64`, but we don't test it); fixing demo-k9-cloudsec-agent's own toolchain.
 
+> **Correction (2026-10-15):** claims in this doc that GitHub "paused" or "no longer sells" individual Copilot plans are outdated. Sign-ups for Pro, Pro+ and Student were paused from 2026-04-20 ([#192963](https://github.com/orgs/community/discussions/192963)), but GitHub began reopening Student, Pro, Pro+ and Max sign-ups gradually on 2026-06-16 ([#197089](https://github.com/orgs/community/discussions/197089)). #197089 doesn't say whether cancelled subscribers can resubscribe. The README was corrected before v1.0.2.
+
 ## High-level implementation steps
 
 1. **README: runner support policy.** In Prerequisites, state the support policy above, and that the action is tested on x64 GitHub-hosted Ubuntu runners.

@@ -30,6 +30,8 @@ Constraints:
 
 Out of scope: the runner-image work (CLOUD-4198); changing the `copilot-github-token` path, beyond keeping it working; supporting other agents through the `agent` input.
 
+> **Correction (2026-10-15):** claims in this doc that GitHub "paused" or "no longer sells" individual Copilot plans are outdated. Sign-ups for Pro, Pro+ and Student were paused from 2026-04-20 ([#192963](https://github.com/orgs/community/discussions/192963)), but GitHub began reopening Student, Pro, Pro+ and Max sign-ups gradually on 2026-06-16 ([#197089](https://github.com/orgs/community/discussions/197089)). #197089 doesn't say whether cancelled subscribers can resubscribe. The README was corrected before v1.0.2.
+
 ## High-level implementation steps
 
 1. **Diagnostic instrumentation (action branch).** On `CLOUD-4199-org-billed-mcp-policy-block`, give the agent step Copilot CLI debug logging: `--log-dir "$COPILOT_HOME/logs"` plus the debug log-level flag (confirm the exact flag from `copilot --help` on the runner). Make the policy and MCP startup lines visible to us without exposing secrets, either by grepping only the policy, registry and MCP lines into the job log or by uploading a scrubbed log (Q-to-decide).
