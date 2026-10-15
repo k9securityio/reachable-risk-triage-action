@@ -265,9 +265,9 @@ Deliverable: `v1.0.2` published with `@v1` moved, the demo back on `@v1`, and bo
     - `v1` and `v1.0.2` both resolve to `d40f4e0` (verified with `git ls-remote`).
 17. ✅ **Demo cleanup.** Revert the demo's `uses:` to `@v1`. Delete the `cloud-4199-harness` branch, and close any harness-only artifacts.
     - Demo back on `@v1` (`6c3df2f`), fixture back on `@v1` (`d1bf848`; it keeps the `runner` input and the org-billed path). Demo harness branch `cloud-4199-harness` deleted.
-18. 🚧 **Close out.**
+18. ✅ **Close out.**
     - Update the CLOUD-4198 task doc (steps 14, 17–21) and this doc.
     - Comment on CLOUD-4198 and CLOUD-4199 with the release link and run URLs.
     - Link the upstream issue if one was filed.
     - Run `/task-resolve` for both tasks.
-    - Task docs updated (this commit); Jira comments posted on CLOUD-4198/CLOUD-4199. No upstream issue filed: 1.0.98 fixed the 403. `/task-resolve` pending.
+    - Task docs updated (this commit); Jira comments posted on CLOUD-4198/CLOUD-4199. No upstream issue filed: 1.0.98 fixed the 403. Resolved 2026-10-15: resolution summary on CLOUD-4199, transitioned to Done. Follow-on candidates (per-run cost reporting) deliberately not ticketed, by user decision.

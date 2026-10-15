@@ -217,4 +217,6 @@ Deliverable: `v1.0.2` published with `@v1` moved to it, before 2026-10-19.
 ### Phase D — Close out
 
 21. ✅ Update CLOUD-4198 with the PR link, release link, 26.04 run URL and any follow-on issue. Then run `/task-resolve CLOUD-4198-ubuntu-26-runner-readiness`.
-22. After 2026-11-19 (optional reminder): confirm the demo's scheduled runs on the migrated `ubuntu-latest` are still green. That's ongoing 26.04 coverage, and a dispatch with `runner: ubuntu-24.04` covers 24.04 from then on.
+22. ❌ After 2026-11-19 (optional reminder): confirm the demo's scheduled runs on the migrated `ubuntu-latest` are still green. That's ongoing 26.04 coverage, and a dispatch with `runner: ubuntu-24.04` covers 24.04 from then on.
+
+Resolved 2026-10-15: shipped in v1.0.2; resolution summary on CLOUD-4198, transitioned to Done. Step 22 and testing the `copilot-github-token` path were deliberately not ticketed, by user decision.
