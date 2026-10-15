@@ -225,17 +225,26 @@ Deliverable: a harness run on the fixed action branch reaches the k9 MCP server 
 
 Deliverable: the fix merged to `main`, with green end-to-end demo triage runs on `ubuntu-24.04` and `ubuntu-26.04` using the merged commit (full behaviour: test-command, fix PRs, Teams).
 
-10. **README.** Add a troubleshooting row for `1 MCP server was blocked by policy: 'k9'` with the confirmed cause and fix. If the fix is the CLI upgrade, say the action now pins a CLI version that resolves it. Update Prerequisites if the org-billed path needs anything new. Keep the Quickstart/example YAML identical to each other (the CLOUD-4198 diff check), and run `make quick`.
-11. **PR.** Push, then open a PR with `fix: <confirmed fix> - CLOUD-4199`, stating the root cause, the CLI version change and its notable changes (e.g. the 1.0.92 sandboxed-shell `GITHUB_TOKEN` change), the harness evidence, and that diagnostics were removed. Poll until both `lint-and-audit` legs are green, then rebase-merge and delete the branch.
-12. **Pre-release verification on both images** (AGENTS.md rule; also completes CLOUD-4198 step 14):
+10. ✅ **README.** Add a troubleshooting row for `1 MCP server was blocked by policy: 'k9'` with the confirmed cause and fix. If the fix is the CLI upgrade, say the action now pins a CLI version that resolves it. Update Prerequisites if the org-billed path needs anything new. Keep the Quickstart/example YAML identical to each other (the CLOUD-4198 diff check), and run `make quick`.
+11. ✅ **PR.** Push, then open a PR with `fix: <confirmed fix> - CLOUD-4199`, stating the root cause, the CLI version change and its notable changes (e.g. the 1.0.92 sandboxed-shell `GITHUB_TOKEN` change), the harness evidence, and that diagnostics were removed. Poll until both `lint-and-audit` legs are green, then rebase-merge and delete the branch.
+12. ✅ **Pre-release verification on both images** (AGENTS.md rule; also completes CLOUD-4198 step 14):
     - On the demo's `main`, temporarily pin `uses: k9securityio/reachable-risk-triage-action@<merged main SHA> # pre-release verification, CLOUD-4199`. Use a SHA on the demo's `main`, not a branch, so fix PRs branch from `main` and carry only the dependency bump.
     - Dispatch `runner: ubuntu-24.04` and `runner: ubuntu-26.04`, one after the other (the shared concurrency group queues them).
-13. **Verify deliverable.** For both runs:
+13. ✅ **Verify deliverable.** For both runs:
     - the job completes green;
     - "Check deliverables exist" passes;
     - fix PRs open or are skipped exactly as the report says (existing #56/#57 are handled without duplicates);
     - the Teams card arrives;
     - the image line in "Set up job" matches the requested runner.
+
+   - **Done 2026-10-14/15. The scope grew: verification found two more Copilot CLI 1.0.98 behaviour changes, fixed on branch `CLOUD-4199-cli-permissions-subagents` (second PR):**
+     - Assisted Permissions denied the caller's own commands (`python -m pip`, `python -m pytest`, even `ls .venv/bin/`) with `Denied, no one to approve`, under bare `--allow-tool 'shell'` and under `--allow-all-tools` ([fixture 38652114591](https://github.com/k9securityio/rr-triage-fixture/actions/runs/38652114591): 15 denials; [38657647124](https://github.com/k9securityio/rr-triage-fixture/actions/runs/38657647124): 12). The agent got past them through improvised command forms; the test gate held, but not by design. 1.0.80 only denied URL fetches. **Fix:** `--allow-all-tools --allow-all-paths`, with URLs still restricted, following the eval-harness principle (k9-mcp-server `drivers/claude_code.py`: shell granted outright, the container/runner is the boundary).
+     - Task-tool subagents ignored `--model` and ran on Opus 5.5 once the org allowed it (billing 2026-10-14: Opus 463 credits; demo run [38647781170](https://github.com/k9securityio/demo-k9-cloudsec-agent/actions/runs/38647781170) cost 1,089 credits against 684 without subagents). They also work without the RR guidance in context. **Fix:** `--excluded-tools task`, matching the evals' enforced `--disallowedTools Task`. Opus 5.5 is also disabled in the k9securityio model policy.
+     - Added step "Report denied agent commands": it counts denial lines in `agent-run.log` and lists them in the job summary with a `::warning::`, mirroring the evals' `denied_shell_commands`. Added a README troubleshooting row for it.
+     - Verification moved from the demo (195 alerts, about $7–11 per run) to the cheaper rr-triage-fixture (11 alerts, about $2 per run) at the user's request. The fixture is pinned to `7070261`, uses the org-billed path, and has a `runner` input (fixture `fd7b01c` → `8e59a03` → latest). Final runs on `7070261`:
+       - ubuntu-24.04 [38659441800](https://github.com/k9securityio/rr-triage-fixture/actions/runs/38659441800) and ubuntu-26.04 [38660421501](https://github.com/k9securityio/rr-triage-fixture/actions/runs/38660421501): both green; **0 denied commands**; `deps-command`/`test-command` run as written; 0 subagents; no MCP block; fix PRs #4/#5 opened only after tests passed; deliverables and Teams OK; leaks 0; 192.6 and 176.8 AI credits ($1.93 / $1.77).
+     - Cost incident: the day's testing used up the seat's included AI credits (overage about $12.86). The user set an org budget for all AI Credit SKUs: $25/month, hard stop.
+
 
     Record both run URLs for the release notes.
 
