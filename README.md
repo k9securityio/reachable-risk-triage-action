@@ -12,13 +12,13 @@ The k9 MCP server stays the source of truth for the triage procedure. Every run 
 current workflow guidance and risk rubric from the server, so scoring improvements reach you
 without an action upgrade.
 
-## Triage Dependabot alerts by reachability
+## Triage Dependabot alerts by risk with reachability and exploitability signals
 
 A KEV or EPSS gate tells you which vulnerabilities are exploited or likely to be exploited
 somewhere. It cannot tell you whether your code reaches the vulnerable dependency. This action
-gives each alert one verdict that combines reachability, exploit evidence (VulnCheck KEV and EPSS),
-and the asset context you declare, in every execution context where the alert's code runs. The
-agent analyzes reachability in your repository. k9 scores the risk then recommends an action.
+scores each alert's risk from reachability, exploit evidence (VulnCheck KEV and EPSS), and the
+asset context you declare, with a verdict for each execution context where the alert's code runs.
+The agent analyzes reachability in your repository. k9 scores the risk then recommends an action.
 
 - **A verdict for every open alert:** FIX_TODAY, REVIEW, SCHEDULE, or DEFER, with the evidence
   behind it. See a real report: the
