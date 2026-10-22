@@ -3,7 +3,7 @@
 Most of your Dependabot queue cannot reach your code, and the few alerts that can are buried
 in it. This action triages every open alert on a schedule you choose: an AI agent runs inside
 your GitHub Actions job, scores each alert with the k9 Security
-[Reachable Risk](https://www.k9security.io/lp/reachable-risk/) rubric, publishes a full triage
+[Reachable Risk](https://www.k9security.io/lp/reachable-risk-7/) rubric, publishes a full triage
 report, opens a tested fix PR for each finding worth fixing, and optionally posts the outcome to
 Microsoft Teams. The agent analyzes, the action orchestrates, and engineers decide using
 evidence: nothing merges or dismisses without you.
@@ -11,6 +11,30 @@ evidence: nothing merges or dismisses without you.
 The k9 MCP server stays the source of truth for the triage procedure. Every run fetches the
 current workflow guidance and risk rubric from the server, so scoring improvements reach you
 without an action upgrade.
+
+## Triage Dependabot alerts by reachability
+
+A KEV or EPSS gate tells you which vulnerabilities are exploited or likely to be exploited
+somewhere. It cannot tell you whether your code reaches the vulnerable dependency. This action
+gives each alert one verdict that combines reachability, exploit evidence (VulnCheck KEV and EPSS),
+and the asset context you declare, in every execution context where the alert's code runs. The
+agent analyzes reachability in your repository. k9 scores the risk then recommends an action.
+
+- **A verdict for every open alert:** FIX_TODAY, REVIEW, SCHEDULE, or DEFER, with the evidence
+  behind it. See a real report: the
+  [Redash sample triage report](https://www.k9security.io/lp/reachable-risk/samples/redash/)
+  ([all samples](https://www.k9security.io/lp/reachable-risk/samples/)).
+- **Tested fix PRs:** one per package worth fixing, opened only after your test command passes
+  on the upgraded dependency.
+- **Running in public:** [cedar-py](https://github.com/k9securityio/cedar-py) triages its
+  Dependabot alerts with this action every week
+  ([workflow](https://github.com/k9securityio/cedar-py/blob/main/.github/workflows/dependency-triage.yml)).
+
+Read more:
+[243 Dependabot alerts in 12 weeks. Zero needed fixing today.](https://www.k9security.io/posts/2026/10/dependabot-alerts-12-weeks-zero-fix-today/),
+[Why coding agents need help triaging dependency alerts](https://www.k9security.io/posts/2026/09/why-coding-agents-need-help-triaging-dependency-alerts/),
+and the step-by-step guide
+[Automatically triage Dependabot alerts with GitHub Actions](https://docs.k9security.io/agents/automatically-triage-dependabot-alerts-github-actions/).
 
 ## Quickstart
 
@@ -65,7 +89,7 @@ jobs:
 
       # The floating v1 major tag is the recommended default: fixes reach
       # every caller without per-repo edits. Policy-restricted orgs can pin
-      # to a release SHA instead — see the README's versioning section.
+      # to a release SHA instead: see the README's versioning section.
       - uses: k9securityio/reachable-risk-triage-action@v1 # zizmor: ignore[unpinned-uses]
         with:
           k9-client-id: ${{ secrets.K9_CLIENT_ID }}
@@ -76,7 +100,7 @@ jobs:
           model: claude-sonnet-5
           # deps-command (required) installs your dependencies before the
           # agent analyzes the repo: installed dependency trees are essential
-          # for accurate reachability analysis. test-command gates fix PRs —
+          # for accurate reachability analysis. test-command gates fix PRs:
           # a PR opens only when it passes on the bumped branch; leave it
           # unset to get reports without fix PRs.
           deps-command: "npm ci"
@@ -122,12 +146,13 @@ context.
    - **An individual Copilot Pro, Pro+ or Max plan**, used through the
      [`COPILOT_GITHUB_TOKEN`](#secrets) secret. Usage is billed to that user's plan.
 2. **A k9 Security account** with the
-   [Reachable Risk](https://www.k9security.io/lp/reachable-risk/) plan (`score_risk` access). Free to start, no credit card required.
+   [Reachable Risk](https://www.k9security.io/lp/reachable-risk-7/) plan (`score_risk` access): 7-day free
+   trial, then $10/month for 1,000 alerts. No card required to start the trial.
 3. **Dependabot alerts enabled** on the repository.
 4. Optional: **a Microsoft Teams channel** where run outcomes should be announced.
 5. **A GitHub-hosted Ubuntu runner.** The action supports the Ubuntu images GitHub currently
-   supports — today `ubuntu-24.04` and `ubuntu-26.04` (`ubuntu-latest` resolves to one of them) —
-   and is tested on x64. Use the image your CI uses; see
+   supports: `ubuntu-24.04` and `ubuntu-26.04` (`ubuntu-latest` resolves to one of them).
+   It is tested on x64. Use the image your CI uses; see
    [Run triage like your CI](#run-triage-like-your-ci).
 
 ## Secrets
@@ -145,12 +170,12 @@ Repository (or organization) Actions secrets:
 
 | Input | Required | Default | Purpose |
 | --- | --- | --- | --- |
-| `k9-client-id` | yes | — | k9 Service Client (M2M) id |
-| `k9-client-secret` | yes | — | k9 Service Client (M2M) secret |
-| `github-token` | yes | — | Fine-grained PAT for `gh` (see Secrets) |
-| `agent` | yes | — | Agent CLI. v1 supports `copilot`; other values fail fast |
-| `model` | yes | — | Model the agent CLI uses (e.g. `claude-sonnet-5`) |
-| `deps-command` | yes | — | Repo's dependency-install command; runs before analysis (reachability needs installed deps) and again on fix branches |
+| `k9-client-id` | yes | none | k9 Service Client (M2M) id |
+| `k9-client-secret` | yes | none | k9 Service Client (M2M) secret |
+| `github-token` | yes | none | Fine-grained PAT for `gh` (see Secrets) |
+| `agent` | yes | none | Agent CLI. v1 supports `copilot`; other values fail fast |
+| `model` | yes | none | Model the agent CLI uses (e.g. `claude-sonnet-5`) |
+| `deps-command` | yes | none | Repo's dependency-install command; runs before analysis (reachability needs installed deps) and again on fix branches |
 | `test-command` | no | `""` | Repo's test command; when unset, the run reports only and opens no fix PRs |
 | `teams-webhook-url` | no | `""` | Teams Workflows webhook; when unset, no Teams notification |
 | `copilot-github-token` | no | Actions token | Copilot auth override (see Secrets) |

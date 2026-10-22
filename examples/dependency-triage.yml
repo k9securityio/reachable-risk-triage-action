@@ -41,7 +41,7 @@ jobs:
 
       # The floating v1 major tag is the recommended default: fixes reach
       # every caller without per-repo edits. Policy-restricted orgs can pin
-      # to a release SHA instead — see the README's versioning section.
+      # to a release SHA instead: see the README's versioning section.
       - uses: k9securityio/reachable-risk-triage-action@v1 # zizmor: ignore[unpinned-uses]
         with:
           k9-client-id: ${{ secrets.K9_CLIENT_ID }}
@@ -52,7 +52,7 @@ jobs:
           model: claude-sonnet-5
           # deps-command (required) installs your dependencies before the
           # agent analyzes the repo: installed dependency trees are essential
-          # for accurate reachability analysis. test-command gates fix PRs —
+          # for accurate reachability analysis. test-command gates fix PRs:
           # a PR opens only when it passes on the bumped branch; leave it
           # unset to get reports without fix PRs.
           deps-command: "npm ci"

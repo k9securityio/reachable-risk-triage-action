@@ -10,10 +10,8 @@
 # permissions, concurrency, and timeout-minutes. See examples/.
 name: Reachable Risk Triage
 description: >-
-  Scheduled dependency alert triage with the k9 Security MCP server: score
-  every open Dependabot alert against the k9 risk rubric, publish a full
-  triage report to the job summary and an artifact, open tested fix PRs for
-  actionable findings, and notify Microsoft Teams.
+  Prioritize Dependabot alerts by what your code can reach: one verdict per
+  alert from reachability, KEV, EPSS, and asset context, plus tested fix PRs.
 author: k9 Security
 
 branding:
