@@ -11,7 +11,7 @@
 name: Reachable Risk Triage
 description: >-
   Prioritize Dependabot alerts by what your code can reach: one verdict per
-  alert from reachability, KEV, EPSS, and asset context, plus tested fix PRs.
+  alert, plus tested fix PRs.
 author: k9 Security
 
 branding:
