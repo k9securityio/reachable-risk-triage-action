@@ -10,8 +10,8 @@
 # permissions, concurrency, and timeout-minutes. See examples/.
 name: Reachable Risk Triage
 description: >-
-  Prioritize Dependabot alerts by risk from reachability, KEV, and EPSS. Get a
-  clear recommended action and tested fix PRs.
+  Prioritize Dependabot CVE and vulnerability alerts by risk from reachability,
+  KEV, and EPSS, plus tested fix PRs.
 author: k9 Security
 
 branding:
